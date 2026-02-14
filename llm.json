@@ -1,0 +1,72 @@
+{
+  "project": "maingest",
+  "frontend": {
+    "themeSystem": {
+      "rootVariables": [
+        "--bg",
+        "--surface",
+        "--text",
+        "--muted",
+        "--primary",
+        "--primary-contrast",
+        "--border",
+        "--shadow",
+        "--bg-line",
+        "--bg-line-strong"
+      ],
+      "themeSelector": {
+        "component": "ThemeSelector",
+        "modes": ["light", "dark", "semi"],
+        "source": "frontend/src/App.jsx"
+      },
+      "themePropagation": {
+        "attribute": "html[data-theme]",
+        "storageKey": "maingest-theme"
+      }
+    },
+    "authentication": {
+      "loginFlow": {
+        "socialCallbackParams": ["social", "token", "role", "id", "nombre", "correo", "foto"],
+        "localStorageKeys": [
+          "maingest-token",
+          "maingest-role",
+          "maingest-user-id",
+          "maingest-user-name",
+          "maingest-user-email",
+          "maingest-user-photo"
+        ]
+      }
+    },
+    "adminPage": {
+      "route": "/admin",
+      "component": "AdminPage",
+      "roleSource": "localStorage.maingest-role",
+      "sectionsByRole": {
+        "ADMIN": ["resumen", "usuarios", "roles-globales", "empresas", "auditoria"],
+        "ADMIN_EMPRESA": ["resumen-empresa", "usuarios-empresa", "almacenes-empresa"],
+        "OTHER": ["panel-almacen", "inventario", "movimientos"]
+      },
+      "apiEndpoints": {
+        "roles": "GET /api/roles",
+        "empresas": "GET /api/empresas",
+        "usuarios": "GET /api/usuarios"
+      }
+    },
+    "userMenu": {
+      "component": "UserMenu",
+      "source": "frontend/src/App.jsx",
+      "logoutBehavior": {
+        "clearsKeys": [
+          "maingest-token",
+          "maingest-role",
+          "maingest-user-id",
+          "maingest-user-name",
+          "maingest-user-email",
+          "maingest-user-photo"
+        ],
+        "redirect": "/login"
+      }
+    }
+  }
+}
+
