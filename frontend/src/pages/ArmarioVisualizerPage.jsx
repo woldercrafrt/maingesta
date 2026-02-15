@@ -176,11 +176,15 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
               <div className="armario-top-face" />
               <div className="armario-left-face" />
               <div className="armario-box-visual">
+                <div className="armario-right-face" />
+                <div className="armario-right-inner-face" />
                 <div className="armario-frame" style={{ gridTemplateRows: gridRows }}>
                   {repisasSorted.length > 0 ? (
                     repisasSorted.map((repisa) => (
-                      <div key={repisa.id ?? repisa.nivel}>
-                        {/* Espacio funcional para repisa sin elementos visuales */}
+                      <div key={repisa.id ?? repisa.nivel} className="repisa-row">
+                        <div className="repisa-right-face" />
+                        <div className="repisa-top-face" />
+                        <div className="repisa-front" />
                       </div>
                     ))
                   ) : (
@@ -190,7 +194,6 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
                   )}
                 </div>
               </div>
-              <div className="armario-floor" />
             </div>
           </div>
         </div>
@@ -349,12 +352,22 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
           padding: 40px;
         }
+        /* Fondo azul claro solo en tema claro */
+        html:not([data-theme]) .armario-container,
+        html[data-theme='light'] .armario-container {
+          background: linear-gradient(135deg, #e8f4f8 0%, #f0f8ff 50%, #e3f2fd 100%);
+        }
         .armario-sidebar {
           width: 300px;
           background-color: var(--surface);
           border-radius: 8px;
           padding: 20px;
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        /* Fondo azul un poco más oscuro solo en tema claro */
+        html:not([data-theme]) .armario-sidebar,
+        html[data-theme='light'] .armario-sidebar {
+          background: linear-gradient(135deg, #d6e8f0 0%, #e0f0f8 50%, #d1e8f5 100%);
         }
         .armario-sidebar h3 {
           margin-top: 0;
@@ -377,9 +390,17 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
         .armario-scene {
           --armario-depth: 34px;
           --armario-top: 22px;
+          --armario-bottom: 22px;
           --armario-border: 4px;
           padding-left: 0;
           padding-right: 54px; /* space for side numbers */
+          background-color: var(--surface);
+          border-radius: 12px;
+        }
+        /* Fondo azul claro solo en tema claro */
+        html:not([data-theme]) .armario-scene,
+        html[data-theme='light'] .armario-scene {
+          background: linear-gradient(145deg, #e8f4f8 0%, #f0f8ff 50%, #e3f2fd 100%);
         }
         .armario-prism {
           position: relative;
@@ -393,7 +414,7 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
           width: calc(400px + var(--armario-depth));
           height: var(--armario-top);
           background-color: var(--surface);
-          filter: brightness(1.08);
+          filter: brightness(1.12);
           clip-path: polygon(
             0 0,
             calc(100% - var(--armario-depth)) 0,
@@ -422,6 +443,20 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
           border-radius: 10px 0 0 10px;
           pointer-events: none;
         }
+
+        .armario-right-face {
+          position: absolute;
+          top: 0;
+          right: 0;
+          width: 18px;
+          height: 100%;
+          background-color: var(--surface);
+          filter: brightness(0.84);
+          border-left: 1px solid rgba(0,0,0,0.08);
+          pointer-events: none;
+          z-index: 1;
+        }
+
         .armario-box-visual {
           position: absolute;
           left: var(--armario-depth);
@@ -433,12 +468,23 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
           display: flex;
           flex-direction: column;
           justify-content: flex-end; /* Stack from bottom if needed, but sorted list handles order */
-          padding: 10px;
+          padding: 0;
           box-shadow:
             18px 20px 30px rgba(0,0,0,0.22),
             0 0 0 1px rgba(0,0,0,0.04) inset;
           border-radius: 10px;
           overflow: hidden;
+        }
+
+        .armario-right-inner-face {
+          position: absolute;
+          top: 0;
+          right: 0;
+          width: 18px;
+          height: 100%;
+          background: linear-gradient(to left, rgba(0,0,0,0.18), rgba(0,0,0,0));
+          pointer-events: none;
+          z-index: 1;
         }
         
         .armario-frame {
@@ -446,11 +492,13 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
           grid-template-columns: 1fr;
           height: 100%;
           background-color: var(--bg);
-          padding: 10px 10px 14px;
+          padding: 0;
+          margin: 0;
           border: 1px solid var(--border);
           border-radius: 6px;
           overflow: hidden;
           position: relative;
+          z-index: 2;
         }
 
         .armario-empty-state {
@@ -462,19 +510,71 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
           font-style: italic;
         }
 
-
-        
-        .armario-floor {
-          height: 20px;
-          background-color: rgba(0,0,0,0.18);
-          width: calc(400px + var(--armario-depth));
+        .repisa-row {
+          position: relative;
+          height: 100%;
+          /* Reservar espacio para ambas caras (superior y frontal) en la base */
+          padding-bottom: calc(var(--armario-top) + 10px);
+        }
+        .repisa-front {
           position: absolute;
-          bottom: -28px;
           left: 0;
-          transform: none;
-          opacity: 0.55;
-          filter: blur(3px);
-          border-radius: 999px;
+          right: 0;
+          bottom: 0;
+          height: 10px;
+          /* Cara frontal - la más clara */
+          background-color: var(--surface);
+          background-image: linear-gradient(to top, rgba(0,0,0,0.06), rgba(0,0,0,0.01));
+          filter: brightness(1.12);
+          border-top: 1px solid var(--border);
+          box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 -1px 0 rgba(0,0,0,0.08);
+          z-index: 6;
+          pointer-events: none;
+        }
+        .repisa-top-face {
+          position: absolute;
+          left: 0;
+          bottom: 10px; /* justo encima de la cara frontal */
+          width: 100%;
+          height: var(--armario-top);
+          background-color: var(--surface);
+          /* Cara superior - más oscura para contraste */
+          filter: brightness(0.85);
+          /* Plana a la izquierda y en bisel a 45° a la derecha */
+          clip-path: polygon(
+            0 0,
+            calc(100% - var(--armario-top)) 0,
+            100% 100%,
+            0 100%
+          );
+          border-bottom: 1px solid var(--border);
+          /* Sombras más marcadas para mejor contraste */
+          box-shadow: 0 2px 0 rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.08) inset;
+          z-index: 7;
+          pointer-events: none;
+        }
+
+        .repisa-right-face {
+          position: absolute;
+          top: 0;
+          right: 0;
+          /* Para 45°, usar el mismo grosor que la cara superior */
+          width: var(--armario-top);
+          height: 100%;
+          background-color: var(--surface);
+          /* Cara lateral - tono intermedio */
+          filter: brightness(0.88);
+          border-left: 1px solid rgba(0,0,0,0.12);
+          /* Borde superior plano (90°) y borde inferior en 45° hacia la izquierda */
+          clip-path: polygon(
+            0 0,
+            100% 0,
+            100% calc(100% - 10px),
+            0 calc(100% - 10px - var(--armario-top))
+          );
+          box-shadow: -2px 0 0 rgba(0,0,0,0.12) inset, 0 0 0 1px rgba(0,0,0,0.06) inset;
+          z-index: 5;
+          pointer-events: none;
         }
 
         /* Modal Styles (consistent with other pages) */

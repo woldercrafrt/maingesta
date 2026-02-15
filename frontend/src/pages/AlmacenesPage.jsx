@@ -38,6 +38,15 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
   const [isLoadingInventario, setIsLoadingInventario] = useState(false)
   const [almacenFilterNombre, setAlmacenFilterNombre] = useState('')
   const [almacenFilterEmpresa, setAlmacenFilterEmpresa] = useState('')
+  const [showCreateItemModal, setShowCreateItemModal] = useState(false)
+  const [formItemEmpresaId, setFormItemEmpresaId] = useState('')
+  const [formItemAlmacenId, setFormItemAlmacenId] = useState('')
+  const [formItemArmarioId, setFormItemArmarioId] = useState('')
+  const [formItemRepisaId, setFormItemRepisaId] = useState('')
+  const [formItemNombre, setFormItemNombre] = useState('')
+  const [formItemEstado, setFormItemEstado] = useState('BUENO')
+  const [formItemTamanio, setFormItemTamanio] = useState('1')
+  const [isSavingItem, setIsSavingItem] = useState(false)
   const [showCreateAlmacenModal, setShowCreateAlmacenModal] = useState(false)
   const [showEditAlmacenModal, setShowEditAlmacenModal] = useState(false)
   const [editingAlmacen, setEditingAlmacen] = useState(null)
@@ -244,6 +253,55 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
   }, [activeSection, repisasGlobalData])
 
   useEffect(() => {
+    if (!showCreateItemModal) {
+      return
+    }
+    if (repisasGlobalData !== null || isLoadingRepisasGlobal) {
+      return
+    }
+    const token = localStorage.getItem('maingest-token')
+    if (!token) {
+      return
+    }
+    Promise.resolve().then(() => {
+      setIsLoadingRepisasGlobal(true)
+    })
+    fetch(`${backendBaseUrl}/api/almacenes/estructura-global`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('Error al cargar estructura global')
+        return res.json()
+      })
+      .then((json) => {
+        setRepisasGlobalData(json || [])
+      })
+      .catch(() => {})
+      .finally(() => {
+        setIsLoadingRepisasGlobal(false)
+      })
+  }, [showCreateItemModal, repisasGlobalData, isLoadingRepisasGlobal])
+
+  useEffect(() => {
+    if (!showCreateItemModal) {
+      return
+    }
+    if (!empresas || empresas.length === 0) {
+      return
+    }
+    if (role === 'ADMIN') {
+      return
+    }
+    if (formItemEmpresaId) {
+      return
+    }
+    if (empresas.length === 1) {
+      setFormItemEmpresaId(String(empresas[0].id))
+    }
+  }, [showCreateItemModal, empresas, role, formItemEmpresaId])
+
+  useEffect(() => {
     if (activeSection !== 'inventario') {
       return
     }
@@ -281,6 +339,45 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
         setIsLoadingInventario(false)
       })
   }, [activeSection, inventarioData, isLoadingInventario])
+
+  const handleCreateItem = () => {
+    const token = localStorage.getItem('maingest-token')
+    if (!token) return
+    if (!formItemRepisaId || !formItemNombre || !formItemEstado || !formItemTamanio) return
+
+    setIsSavingItem(true)
+    fetch(`${backendBaseUrl}/api/items`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        repisaId: Number(formItemRepisaId),
+        nombre: String(formItemNombre).trim(),
+        estado: String(formItemEstado).trim(),
+        tamanio: Number(formItemTamanio),
+      }),
+    })
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error('Error al crear item')
+        }
+        return res.json()
+      })
+      .then(() => {
+        setShowCreateItemModal(false)
+        setFormItemAlmacenId('')
+        setFormItemArmarioId('')
+        setFormItemRepisaId('')
+        setFormItemNombre('')
+        setFormItemEstado('BUENO')
+        setFormItemTamanio('1')
+        setInventarioData(null)
+      })
+      .catch((err) => alert(err.message))
+      .finally(() => setIsSavingItem(false))
+  }
 
   const actualizarArmarioLocal = (armarioId, patch) => {
     setEstructura((prev) => {
@@ -1019,6 +1116,26 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
               <p className="admin-main-text">
                 Visualiza todo lo que hay dentro de los almacenes, armarios y repisas.
               </p>
+              <div className="admin-table-actions">
+                {canCreate('item') && (
+                  <button
+                    type="button"
+                    className="theme-button"
+                    onClick={() => {
+                      setShowCreateItemModal(true)
+                      setFormItemEmpresaId('')
+                      setFormItemAlmacenId('')
+                      setFormItemArmarioId('')
+                      setFormItemRepisaId('')
+                      setFormItemNombre('')
+                      setFormItemEstado('BUENO')
+                      setFormItemTamanio('1')
+                    }}
+                  >
+                    + Agregar inventario
+                  </button>
+                )}
+              </div>
               <div className="admin-table-shell">
                 <div className="admin-table-header">
                   <div className="admin-table-cell">Empresa</div>
@@ -1080,6 +1197,164 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                     )
                   })}
               </div>
+
+              {showCreateItemModal && (
+                <div className="modal-overlay">
+                  <div className="modal-content">
+                    <h3>Agregar inventario</h3>
+
+                    {role === 'ADMIN' && (
+                      <div className="form-group">
+                        <label>Empresa</label>
+                        <select
+                          value={formItemEmpresaId}
+                          onChange={(e) => {
+                            setFormItemEmpresaId(e.target.value)
+                            setFormItemAlmacenId('')
+                            setFormItemArmarioId('')
+                            setFormItemRepisaId('')
+                          }}
+                        >
+                          <option value="">Selecciona empresa</option>
+                          {(empresas || []).map((empresa) => (
+                            <option key={empresa.id} value={String(empresa.id)}>
+                              {empresa.nombre || `Empresa #${empresa.id}`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    <div className="form-group">
+                      <label>Almacén</label>
+                      <select
+                        value={formItemAlmacenId}
+                        onChange={(e) => {
+                          setFormItemAlmacenId(e.target.value)
+                          setFormItemArmarioId('')
+                          setFormItemRepisaId('')
+                        }}
+                        disabled={role === 'ADMIN' && !formItemEmpresaId}
+                      >
+                        <option value="">Selecciona almacén</option>
+                        {(almacenes || [])
+                          .filter((a) => {
+                            if (role !== 'ADMIN') return true
+                            return String(a.empresaId) === String(formItemEmpresaId)
+                          })
+                          .map((almacen) => (
+                            <option key={almacen.id} value={String(almacen.id)}>
+                              {almacen.nombre || `Almacén #${almacen.id}`}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Armario</label>
+                      <select
+                        value={formItemArmarioId}
+                        onChange={(e) => {
+                          setFormItemArmarioId(e.target.value)
+                          setFormItemRepisaId('')
+                        }}
+                        disabled={!formItemAlmacenId}
+                      >
+                        <option value="">Selecciona armario</option>
+                        {Array.from(
+                          new Map(
+                            (repisasGlobalData || [])
+                              .filter((row) => String(row.almacenId) === String(formItemAlmacenId))
+                              .filter((row) => row.armarioId)
+                              .map((row) => [String(row.armarioId), row]),
+                          ).values(),
+                        ).map((row) => (
+                          <option key={row.armarioId} value={String(row.armarioId)}>
+                            {row.armarioNombre || `Armario #${row.armarioId}`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Repisa</label>
+                      <select
+                        value={formItemRepisaId}
+                        onChange={(e) => setFormItemRepisaId(e.target.value)}
+                        disabled={!formItemArmarioId}
+                      >
+                        <option value="">Selecciona repisa</option>
+                        {(repisasGlobalData || [])
+                          .filter((row) => String(row.armarioId) === String(formItemArmarioId))
+                          .filter((row) => row.repisaId)
+                          .sort((a, b) => (Number(a.repisaNivel) || 0) - (Number(b.repisaNivel) || 0))
+                          .map((row) => (
+                            <option key={row.repisaId} value={String(row.repisaId)}>
+                              Repisa {row.repisaNivel}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Nombre del item</label>
+                      <input
+                        type="text"
+                        value={formItemNombre}
+                        onChange={(e) => setFormItemNombre(e.target.value)}
+                        placeholder="Ej. Tornillos"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Estado</label>
+                      <select value={formItemEstado} onChange={(e) => setFormItemEstado(e.target.value)}>
+                        <option value="BUENO">BUENO</option>
+                        <option value="REGULAR">REGULAR</option>
+                        <option value="MALO">MALO</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Tamaño</label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={formItemTamanio}
+                        onChange={(e) => setFormItemTamanio(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="modal-actions">
+                      <button
+                        className="theme-button secondary"
+                        type="button"
+                        onClick={() => setShowCreateItemModal(false)}
+                        disabled={isSavingItem}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        className="theme-button"
+                        type="button"
+                        onClick={handleCreateItem}
+                        disabled={
+                          isSavingItem ||
+                          !formItemAlmacenId ||
+                          !formItemArmarioId ||
+                          !formItemRepisaId ||
+                          !formItemNombre ||
+                          !formItemEstado ||
+                          !formItemTamanio
+                        }
+                      >
+                        {isSavingItem ? 'Guardando…' : 'Guardar'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
           {activeSection === 'armarios-repisas' && (
