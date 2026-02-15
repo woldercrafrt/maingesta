@@ -10,6 +10,11 @@ const AlmacenVisualizerPage = ({ theme, onThemeChange }) => {
   const [estructura, setEstructura] = useState(null)
   const [error, setError] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [inventarioRows, setInventarioRows] = useState([])
+  const [inventarioError, setInventarioError] = useState(null)
+  const [selectedRepisa, setSelectedRepisa] = useState(null)
+  const [showRepisaItemsModal, setShowRepisaItemsModal] = useState(false)
+  const [expandedArmarioId, setExpandedArmarioId] = useState(null)
   const canvasRef = useRef(null)
   const [draggingArmarioId, setDraggingArmarioId] = useState(null)
   const [hoveredArmarioId, setHoveredArmarioId] = useState(null)
@@ -200,6 +205,27 @@ const AlmacenVisualizerPage = ({ theme, onThemeChange }) => {
   }, [id])
 
   useEffect(() => {
+    const token = localStorage.getItem('maingest-token')
+    if (!token) return
+
+    fetch(`${backendBaseUrl}/api/reportes/inventario`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('No se pudo cargar el inventario')
+        return res.json()
+      })
+      .then((rows) => {
+        setInventarioRows(Array.isArray(rows) ? rows : [])
+        setInventarioError(null)
+      })
+      .catch((err) => {
+        setInventarioRows([])
+        setInventarioError(err.message)
+      })
+  }, [id])
+
+  useEffect(() => {
     if (!canvasRef.current || !estructura) {
       return
     }
@@ -268,6 +294,61 @@ const AlmacenVisualizerPage = ({ theme, onThemeChange }) => {
 
   const token = localStorage.getItem('maingest-token')
   if (!token) return <Navigate to="/" />
+
+  const almacenId = Number(id)
+  const inventarioDelAlmacen = (inventarioRows || []).filter((row) => Number(row?.almacenId) === almacenId)
+  const repisaAgg = inventarioDelAlmacen.reduce((acc, row) => {
+    const repisaId = row?.repisaId
+    if (!repisaId) return acc
+
+    const current = acc[repisaId] || {
+      repisaId,
+      repisaNivel: row?.repisaNivel,
+      repisaCapacidad: row?.repisaCapacidad,
+      itemsCount: 0,
+      usedSpace: 0,
+      items: [],
+    }
+
+    current.itemsCount += 1
+    const tamanio = Number(row?.itemTamanio)
+    current.usedSpace += Number.isFinite(tamanio) ? tamanio : 0
+    current.items.push({
+      id: row?.itemId,
+      nombre: row?.itemNombre,
+      estado: row?.itemEstado,
+      tamanio: row?.itemTamanio,
+    })
+
+    acc[repisaId] = current
+    return acc
+  }, {})
+
+  const getRepisaStats = (repisa) => {
+    const repisaId = repisa?.id
+    const cap = Number(repisa?.capacidad)
+    const agg = repisaId ? repisaAgg[repisaId] : null
+    const used = agg?.usedSpace || 0
+    const count = agg?.itemsCount || 0
+    const remaining = Number.isFinite(cap) ? Math.max(0, cap - used) : null
+    return { count, used, remaining }
+  }
+
+  const openRepisaItems = (armario, repisa) => {
+    const repisaId = repisa?.id
+    const agg = repisaId ? repisaAgg[repisaId] : null
+    const stats = getRepisaStats(repisa)
+    setSelectedRepisa({
+      repisaId,
+      repisaNivel: repisa?.nivel,
+      repisaCapacidad: repisa?.capacidad,
+      armarioId: armario?.id,
+      armarioNombre: armario?.nombre,
+      items: agg?.items || [],
+      stats,
+    })
+    setShowRepisaItemsModal(true)
+  }
 
   const zoomedCanvasStyle =
     canvasBaseSize.width && canvasBaseSize.height
@@ -425,7 +506,10 @@ const AlmacenVisualizerPage = ({ theme, onThemeChange }) => {
                                   onPointerCancel={onArmarioPointerUp}
                                   onMouseEnter={() => setHoveredArmarioId(armario.id)}
                                   onMouseLeave={() => setHoveredArmarioId(null)}
-                                  onClick={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    if (!isEditMode) navigate(`/armario/${armario.id}`)
+                                  }}
                                 >
                                   <span className="armario-box-label" style={{ transform: `rotate(-${layout.rotacion}deg)` }}>{armario.nombre}</span>
                                   {isEditMode && selectedArmarioIdForEdit === armario.id && (
@@ -447,24 +531,102 @@ const AlmacenVisualizerPage = ({ theme, onThemeChange }) => {
                   </div>
                   <div className="almacen-armarios-list">
                     <h3 className="almacen-list-title">Armarios y repisas</h3>
+                    {inventarioError && (
+                      <div className="error-message" style={{ marginBottom: '10px' }}>
+                        {inventarioError}
+                      </div>
+                    )}
                     {estructura.armarios && estructura.armarios.length > 0 ? (
                       <div className="armarios-list-container">
                         {estructura.armarios.map((armario) => (
-                          <div
-                            key={armario.id}
-                            className={`armario-list-item ${hoveredArmarioId === armario.id ? 'hovered' : ''}`}
-                            onMouseEnter={() => setHoveredArmarioId(armario.id)}
-                            onMouseLeave={() => setHoveredArmarioId(null)}
-                          >
-                            <div className="armario-header">
-                              <span className="armario-icon">📦</span>
-                              <span className="armario-name">{armario.nombre}</span>
-                            </div>
-                            {armario.repisas && armario.repisas.length > 0 && (
-                              <div className="repisas-count">
-                                {armario.repisas.length} repisas
+                          <div key={armario.id}>
+                            <div
+                              className={`armario-list-item ${hoveredArmarioId === armario.id ? 'hovered' : ''}`}
+                              onMouseEnter={() => setHoveredArmarioId(armario.id)}
+                              onMouseLeave={() => setHoveredArmarioId(null)}
+                              onClick={() =>
+                                setExpandedArmarioId((prev) => (prev === armario.id ? null : armario.id))
+                              }
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault()
+                                  setExpandedArmarioId((prev) => (prev === armario.id ? null : armario.id))
+                                }
+                              }}
+                            >
+                              <div className="armario-header">
+                                <span
+                                  className={`armario-caret ${expandedArmarioId === armario.id ? 'expanded' : ''}`}
+                                  aria-hidden="true"
+                                >
+                                  ▸
+                                </span>
+                                <span className="armario-icon">📦</span>
+                                <span className="armario-name">{armario.nombre}</span>
                               </div>
-                            )}
+                              <div className="armario-list-right">
+                                {armario.repisas && armario.repisas.length > 0 && (
+                                  <div className="repisas-count">{armario.repisas.length} repisas</div>
+                                )}
+                                <button
+                                  type="button"
+                                  className="armario-open-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    navigate(`/armario/${armario.id}`)
+                                  }}
+                                  title="Abrir armario"
+                                >
+                                  Abrir
+                                </button>
+                              </div>
+                            </div>
+
+                            <div
+                              className={`armario-accordion ${expandedArmarioId === armario.id ? 'expanded' : ''}`}
+                              style={{
+                                maxHeight:
+                                  expandedArmarioId === armario.id && armario.repisas
+                                    ? `${Math.min(360, armario.repisas.length * 74 + 16)}px`
+                                    : '0px',
+                              }}
+                            >
+                              {expandedArmarioId === armario.id && armario.repisas && armario.repisas.length > 0 ? (
+                                <div className="armario-accordion-inner">
+                                  {[...armario.repisas]
+                                    .sort((a, b) => Number(b?.nivel) - Number(a?.nivel))
+                                    .map((repisa) => {
+                                      const stats = getRepisaStats(repisa)
+                                      return (
+                                        <div
+                                          key={repisa.id ?? repisa.nivel}
+                                          className="repisa-list-item"
+                                          onClick={() => openRepisaItems(armario, repisa)}
+                                          role="button"
+                                          tabIndex={0}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                              e.preventDefault()
+                                              openRepisaItems(armario, repisa)
+                                            }
+                                          }}
+                                        >
+                                          <div className="repisa-list-main">
+                                            <div className="repisa-list-title">{`Repisa nivel ${repisa.nivel}`}</div>
+                                            <div className="repisa-list-meta">{`${stats.count} items`}</div>
+                                          </div>
+                                          <div className="repisa-list-stats">
+                                            <div>{`Cap: ${repisa.capacidad ?? '-'}`}</div>
+                                            <div>{`Rest: ${stats.remaining ?? '-'}`}</div>
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                </div>
+                              ) : null}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -478,6 +640,37 @@ const AlmacenVisualizerPage = ({ theme, onThemeChange }) => {
           )}
         </div>
       </div>
+
+      {showRepisaItemsModal && selectedRepisa && (
+        <div className="modal-overlay" onClick={() => setShowRepisaItemsModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>{`Items en ${selectedRepisa.armarioNombre || 'Armario'} - Repisa nivel ${selectedRepisa.repisaNivel ?? '-'}`}</h3>
+            <div style={{ marginBottom: '14px', color: 'var(--muted)', fontSize: '0.9rem' }}>
+              {`Items: ${selectedRepisa.stats?.count ?? 0} | Capacidad: ${selectedRepisa.repisaCapacidad ?? '-'} | Espacio restante: ${selectedRepisa.stats?.remaining ?? '-'}`}
+            </div>
+
+            {selectedRepisa.items && selectedRepisa.items.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '50vh', overflow: 'auto' }}>
+                {selectedRepisa.items.map((it) => (
+                  <div key={it.id} style={{ padding: '10px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--bg)' }}>
+                    <div style={{ fontWeight: 600, color: 'var(--text)' }}>{it.nombre}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{`Estado: ${it.estado ?? '-'}`}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{`Tamaño: ${it.tamanio ?? '-'}`}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ color: 'var(--muted)' }}>Esta repisa no tiene items.</div>
+            )}
+
+            <div className="modal-actions">
+              <button className="theme-button secondary" onClick={() => setShowRepisaItemsModal(false)}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

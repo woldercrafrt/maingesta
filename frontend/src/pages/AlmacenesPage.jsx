@@ -63,6 +63,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
   const [formArmarioAlto, setFormArmarioAlto] = useState('0.6')
   const [formArmarioAlmacenId, setFormArmarioAlmacenId] = useState('')
   const [formArmarioEmpresaId, setFormArmarioEmpresaId] = useState('')
+  const [formArmarioMeasureMode, setFormArmarioMeasureMode] = useState('metros')
   const [isSavingArmario, setIsSavingArmario] = useState(false)
   const role = localStorage.getItem('maingest-role') || 'ADMIN'
   const roleLabel =
@@ -887,6 +888,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
         setFormArmarioAlto('0.6')
         setFormArmarioAlmacenId('')
         setFormArmarioEmpresaId('')
+        setFormArmarioMeasureMode('metros')
         setError(null)
       })
       .catch(() => {
@@ -1199,13 +1201,14 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
               </div>
 
               {showCreateItemModal && (
-                <div className="modal-overlay">
-                  <div className="modal-content">
-                    <h3>Agregar inventario</h3>
+                <div className="modal-backdrop" onClick={() => setShowCreateItemModal(false)}>
+                  <div className="modal" onClick={(e) => e.stopPropagation()}>
+                    <h3 className="modal-title">Agregar inventario</h3>
+                    <p className="modal-text">Selecciona la ubicación y completa los datos del item.</p>
 
-                    {role === 'ADMIN' && (
-                      <div className="form-group">
-                        <label>Empresa</label>
+                    <div className="modal-form">
+
+                      {role === 'ADMIN' ? (
                         <select
                           value={formItemEmpresaId}
                           onChange={(e) => {
@@ -1222,11 +1225,8 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                             </option>
                           ))}
                         </select>
-                      </div>
-                    )}
+                      ) : null}
 
-                    <div className="form-group">
-                      <label>Almacén</label>
                       <select
                         value={formItemAlmacenId}
                         onChange={(e) => {
@@ -1248,10 +1248,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                             </option>
                           ))}
                       </select>
-                    </div>
 
-                    <div className="form-group">
-                      <label>Armario</label>
                       <select
                         value={formItemArmarioId}
                         onChange={(e) => {
@@ -1274,10 +1271,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                           </option>
                         ))}
                       </select>
-                    </div>
 
-                    <div className="form-group">
-                      <label>Repisa</label>
                       <select
                         value={formItemRepisaId}
                         onChange={(e) => setFormItemRepisaId(e.target.value)}
@@ -1294,29 +1288,20 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                             </option>
                           ))}
                       </select>
-                    </div>
 
-                    <div className="form-group">
-                      <label>Nombre del item</label>
                       <input
                         type="text"
                         value={formItemNombre}
                         onChange={(e) => setFormItemNombre(e.target.value)}
                         placeholder="Ej. Tornillos"
                       />
-                    </div>
 
-                    <div className="form-group">
-                      <label>Estado</label>
                       <select value={formItemEstado} onChange={(e) => setFormItemEstado(e.target.value)}>
                         <option value="BUENO">BUENO</option>
                         <option value="REGULAR">REGULAR</option>
                         <option value="MALO">MALO</option>
                       </select>
-                    </div>
 
-                    <div className="form-group">
-                      <label>Tamaño</label>
                       <input
                         type="number"
                         min="1"
@@ -1328,7 +1313,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
 
                     <div className="modal-actions">
                       <button
-                        className="theme-button secondary"
+                        className="theme-button"
                         type="button"
                         onClick={() => setShowCreateItemModal(false)}
                         disabled={isSavingItem}
@@ -1894,6 +1879,20 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
             <h3 className="modal-title">Nuevo armario</h3>
             <p className="modal-text">Crea un armario dentro de un almacén.</p>
             <div className="modal-form">
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="theme-button secondary"
+                  style={{ padding: '6px 10px', fontSize: '0.85rem' }}
+                  onClick={() =>
+                    setFormArmarioMeasureMode((prev) => (prev === 'metros' ? 'proporcion' : 'metros'))
+                  }
+                  title="Cambiar tipo de medida"
+                >
+                  {formArmarioMeasureMode === 'metros' ? 'Metros' : 'Proporción'}
+                </button>
+              </div>
+
               {role === 'ADMIN' ? (
                 <select
                   value={formArmarioEmpresaId}
@@ -1939,29 +1938,38 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
               />
               <div style={{ display: 'flex', gap: '8px' }}>
                 <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>Ancho (0-1)</label>
+                    <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>
+                      {`Ancho (${formArmarioMeasureMode === 'metros' ? 'Metros' : 'Proporción'})`}
+                    </label>
                     <input
                         type="number"
-                        min="0.01"
+                        min={formArmarioMeasureMode === 'metros' ? '0.01' : '0.01'}
                         max="1"
-                        step="0.01"
+                        step={formArmarioMeasureMode === 'metros' ? '1' : '0.01'}
                         placeholder="Ancho"
                         value={formArmarioAncho}
                         onChange={(e) => setFormArmarioAncho(e.target.value)}
                     />
                 </div>
                 <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>Alto (0-1)</label>
+                    <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>
+                      {`Alto (${formArmarioMeasureMode === 'metros' ? 'Metros' : 'Proporción'})`}
+                    </label>
                     <input
                         type="number"
-                        min="0.01"
+                        min={formArmarioMeasureMode === 'metros' ? '0.01' : '0.01'}
                         max="1"
-                        step="0.01"
+                        step={formArmarioMeasureMode === 'metros' ? '1' : '0.01'}
                         placeholder="Alto"
                         value={formArmarioAlto}
                         onChange={(e) => setFormArmarioAlto(e.target.value)}
                     />
                 </div>
+              </div>
+              <div style={{ marginTop: '6px', fontSize: '0.8rem', color: 'var(--muted)' }}>
+                {formArmarioMeasureMode === 'metros'
+                  ? 'Metros: 1 = 1 metro (máximo 1m).'
+                  : 'Proporción: 0 a 1.'}
               </div>
             </div>
             <div className="modal-actions">
@@ -1972,6 +1980,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                   setShowCreateArmarioModal(false)
                   setFormArmarioAncho('0.12')
                   setFormArmarioAlto('0.6')
+                  setFormArmarioMeasureMode('metros')
                 }}
               >
                 Cancelar

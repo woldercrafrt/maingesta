@@ -12,6 +12,11 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
   const [armario, setArmario] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [inventarioRows, setInventarioRows] = useState([])
+  const [inventarioError, setInventarioError] = useState(null)
+  const [selectedRepisaId, setSelectedRepisaId] = useState(null)
+  const [repisaFilterId, setRepisaFilterId] = useState('')
+  const [itemSearch, setItemSearch] = useState('')
 
   // Form states
   const [showAddRepisaModal, setShowAddRepisaModal] = useState(false)
@@ -53,6 +58,29 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
         setIsLoading(false)
       })
   }, [id, navigate])
+
+  useEffect(() => {
+    const token = localStorage.getItem('maingest-token')
+    if (!token) return
+
+    fetch(`${backendBaseUrl}/api/reportes/inventario`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('Error al cargar inventario')
+        return res.json()
+      })
+      .then((rows) => {
+        setInventarioRows(Array.isArray(rows) ? rows : [])
+        setInventarioError(null)
+      })
+      .catch((err) => {
+        setInventarioRows([])
+        setInventarioError(err.message)
+      })
+  }, [id])
 
   const handleAddRepisa = (nextNivel) => {
     if (!nextNivel || !formRepisaCapacidad) return
@@ -153,6 +181,72 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
   const maxNivel = (armario.repisas || []).reduce((max, r) => Math.max(max, Number(r?.nivel) || 0), 0)
   const nextNivel = maxNivel + 1
 
+  const armarioId = Number(id)
+  const inventarioDelArmario = (inventarioRows || []).filter((row) => Number(row?.armarioId) === armarioId)
+  const repisaAgg = inventarioDelArmario.reduce((acc, row) => {
+    const repisaId = row?.repisaId
+    if (!repisaId) return acc
+    const current = acc[repisaId] || {
+      repisaId,
+      repisaNivel: row?.repisaNivel,
+      repisaCapacidad: row?.repisaCapacidad,
+      itemsCount: 0,
+      usedSpace: 0,
+      items: [],
+    }
+    current.itemsCount += 1
+    const tamanio = Number(row?.itemTamanio)
+    current.usedSpace += Number.isFinite(tamanio) ? tamanio : 0
+    current.items.push({
+      id: row?.itemId,
+      nombre: row?.itemNombre,
+      estado: row?.itemEstado,
+      tamanio: row?.itemTamanio,
+      repisaId: row?.repisaId,
+      repisaNivel: row?.repisaNivel,
+    })
+    acc[repisaId] = current
+    return acc
+  }, {})
+
+  const getRepisaStats = (repisa) => {
+    const repisaId = repisa?.id
+    const cap = Number(repisa?.capacidad)
+    const agg = repisaId ? repisaAgg[repisaId] : null
+    const used = agg?.usedSpace || 0
+    const count = agg?.itemsCount || 0
+    const remaining = Number.isFinite(cap) ? Math.max(0, cap - used) : null
+    return { count, used, remaining, items: agg?.items || [] }
+  }
+
+  const selectedRepisa = (armario.repisas || []).find((r) => r?.id === selectedRepisaId) || null
+  const selectedStats = selectedRepisa ? getRepisaStats(selectedRepisa) : null
+
+  const repisasForSelect = [...(armario.repisas || [])]
+    .filter((r) => r?.id != null)
+    .sort((a, b) => Number(b?.nivel) - Number(a?.nivel))
+
+  const searchNormalized = String(itemSearch || '').trim().toLowerCase()
+  const globalItems = inventarioDelArmario
+    .filter((row) => row?.itemId)
+    .map((row) => ({
+      id: row?.itemId,
+      nombre: row?.itemNombre,
+      estado: row?.itemEstado,
+      tamanio: row?.itemTamanio,
+      repisaId: row?.repisaId,
+      repisaNivel: row?.repisaNivel,
+    }))
+
+  const repisaFilterIdNumber = repisaFilterId ? Number(repisaFilterId) : null
+  const filteredGlobalItems = globalItems.filter((it) => {
+    if (repisaFilterIdNumber && Number(it?.repisaId) !== repisaFilterIdNumber) return false
+    if (!searchNormalized) return true
+    const nombre = String(it?.nombre || '').toLowerCase()
+    const estado = String(it?.estado || '').toLowerCase()
+    return nombre.includes(searchNormalized) || estado.includes(searchNormalized)
+  })
+
   return (
     <main className="page armario-page">
       <header className="admin-topbar">
@@ -171,6 +265,11 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
 
       <div className="armario-body">
         <div className="armario-container">
+          <div className="armario-container-header">
+            <div className="armario-container-title">{armario.nombre}</div>
+            <div className="armario-container-subtitle">{`Dimensiones: ${armario.ancho} x ${armario.alto}`}</div>
+          </div>
+
           <div className="armario-scene">
             <div className="armario-prism">
               <div className="armario-top-face" />
@@ -181,10 +280,48 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
                 <div className="armario-frame" style={{ gridTemplateRows: gridRows }}>
                   {repisasSorted.length > 0 ? (
                     repisasSorted.map((repisa) => (
-                      <div key={repisa.id ?? repisa.nivel} className="repisa-row">
+                      <div
+                        key={repisa.id ?? repisa.nivel}
+                        className={`repisa-row ${selectedRepisaId === repisa?.id ? 'selected' : ''}`}
+                        onClick={() => {
+                          if (repisa?.id) setSelectedRepisaId(repisa.id)
+                        }}
+                        style={{
+                          cursor: repisa?.id ? 'pointer' : undefined,
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            if (repisa?.id) setSelectedRepisaId(repisa.id)
+                          }
+                        }}
+                      >
+                        <div className="repisa-select-overlay" />
                         <div className="repisa-right-face" />
                         <div className="repisa-top-face" />
                         <div className="repisa-front" />
+                        <div
+                          style={{
+                            position: 'absolute',
+                            left: '10px',
+                            top: '10px',
+                            zIndex: 10,
+                            padding: '6px 8px',
+                            borderRadius: '10px',
+                            border: selectedRepisaId === repisa?.id ? '1px solid rgba(37, 99, 235, 0.75)' : '1px solid rgba(0,0,0,0.12)',
+                            background: 'rgba(0, 0, 0, 0.28)',
+                            color: 'white',
+                            fontSize: '12px',
+                            lineHeight: 1.2,
+                            backdropFilter: 'blur(2px)',
+                          }}
+                        >
+                          <div style={{ fontWeight: 700 }}>{`Nivel ${repisa.nivel}`}</div>
+                          <div style={{ opacity: 0.95 }}>{`${getRepisaStats(repisa).count} items`}</div>
+                          <div style={{ opacity: 0.85 }}>{`Restante: ${getRepisaStats(repisa).remaining ?? '-'}`}</div>
+                        </div>
                       </div>
                     ))
                   ) : (
@@ -199,46 +336,138 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
         </div>
 
         <div className="armario-sidebar">
-          <h3>Detalles</h3>
-          <div className="detail-item">
-            <span className="label">Nombre:</span>
-            <span className="value">{armario.nombre}</span>
-          </div>
-          <div className="detail-item">
-            <span className="label">Tamaño Total:</span>
-            <span className="value">{armario.tamanioTotal}</span>
-          </div>
-          <div className="detail-item">
-            <span className="label">Dimensiones (m):</span>
-            <span className="value">
-              {armario.ancho} x {armario.alto}
-            </span>
-          </div>
-          <div className="detail-item">
-            <span className="label">Repisas:</span>
-            <span className="value">{armario.repisas?.length || 0}</span>
-          </div>
-
-          <div className="sidebar-actions" style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {canCreate('repisa') && (
-              <button
-                className="theme-button"
-                onClick={() => setShowAddRepisaModal(true)}
-              >
-                + Agregar Repisa
-              </button>
-            )}
-            {canEdit('armario') && (
-              <button
-                className="theme-button secondary"
-                onClick={() => {
+          <div className="armario-sidebar-header">
+            <h3 style={{ marginTop: 0, marginBottom: 0 }}>Repisas</h3>
+            <div className="armario-sidebar-actions">
+              {canCreate('repisa') && (
+                <button className="theme-button" onClick={() => setShowAddRepisaModal(true)}>
+                  + Agregar Repisa
+                </button>
+              )}
+              {canEdit('armario') && (
+                <button
+                  className="theme-button secondary"
+                  onClick={() => {
                     setFormArmarioAncho(armario.ancho)
                     setFormArmarioAlto(armario.alto)
                     setShowEditSizeModal(true)
-                }}
-              >
-                ✏️ Editar Tamaño
-              </button>
+                  }}
+                >
+                  ✏️ Editar Tamaño
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div style={{ marginTop: '14px' }}>
+            {inventarioError && <div className="error-message">{inventarioError}</div>}
+
+            <div className="repisa-filters">
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Buscar</label>
+                <input
+                  type="text"
+                  value={itemSearch}
+                  onChange={(e) => setItemSearch(e.target.value)}
+                  placeholder="Nombre o estado..."
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Repisa</label>
+                <select
+                  value={repisaFilterId}
+                  onChange={(e) => {
+                    const next = e.target.value
+                    setRepisaFilterId(next)
+                    if (next) setSelectedRepisaId(Number(next))
+                  }}
+                >
+                  <option value="">Todas</option>
+                  {repisasForSelect.map((r) => (
+                    <option key={r.id} value={r.id}>{`Nivel ${r.nivel}`}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {(searchNormalized || repisaFilterId) && (
+              <div className="repisa-results">
+                <div className="repisa-results-header">
+                  <span>{`Resultados: ${filteredGlobalItems.length}`}</span>
+                </div>
+                <div className="repisa-results-list">
+                  {filteredGlobalItems.length > 0 ? (
+                    filteredGlobalItems.map((it) => (
+                      <div
+                        key={it.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => {
+                          if (it?.repisaId) setSelectedRepisaId(Number(it.repisaId))
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            if (it?.repisaId) setSelectedRepisaId(Number(it.repisaId))
+                          }
+                        }}
+                        className={`repisa-result-item ${selectedRepisaId && Number(it?.repisaId) === Number(selectedRepisaId) ? 'active' : ''}`}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
+                          <div style={{ color: 'var(--text)', fontWeight: 600, fontSize: '13px' }}>{it.nombre}</div>
+                          <div className="repisa-result-badge">{`Nivel ${it.repisaNivel ?? '-'}`}</div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginTop: '2px' }}>
+                          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{`Estado: ${it.estado ?? '-'}`}</div>
+                          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{`Tamaño: ${it.tamanio ?? '-'}`}</div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ padding: '10px', color: 'var(--muted)' }}>No hay resultados.</div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div style={{ marginBottom: '12px', color: 'var(--muted)', fontSize: '0.9rem' }}>
+              {selectedRepisa ? (
+                `Seleccionada: nivel ${selectedRepisa.nivel} | Items: ${selectedStats?.count ?? 0} | Capacidad: ${selectedRepisa.capacidad ?? '-'} | Restante: ${selectedStats?.remaining ?? '-'}`
+              ) : (
+                'Selecciona una repisa haciendo click en el visual.'
+              )}
+            </div>
+
+            {selectedRepisa && (
+              <div style={{ overflow: 'auto', maxHeight: '52vh', border: '1px solid var(--border)', borderRadius: '10px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: 'rgba(148, 163, 184, 0.08)' }}>
+                      <th style={{ textAlign: 'left', padding: '10px', fontSize: '12px', color: 'var(--muted)' }}>Nombre</th>
+                      <th style={{ textAlign: 'left', padding: '10px', fontSize: '12px', color: 'var(--muted)' }}>Estado</th>
+                      <th style={{ textAlign: 'right', padding: '10px', fontSize: '12px', color: 'var(--muted)' }}>Tamaño</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(selectedStats?.items || []).length > 0 ? (
+                      (selectedStats?.items || []).map((it) => (
+                        <tr key={it.id} style={{ borderTop: '1px solid var(--border)' }}>
+                          <td style={{ padding: '10px', color: 'var(--text)', fontSize: '13px' }}>{it.nombre}</td>
+                          <td style={{ padding: '10px', color: 'var(--muted)', fontSize: '13px' }}>{it.estado ?? '-'}</td>
+                          <td style={{ padding: '10px', color: 'var(--muted)', fontSize: '13px', textAlign: 'right' }}>{it.tamanio ?? '-'}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={3} style={{ padding: '12px', color: 'var(--muted)' }}>
+                          No hay items en esta repisa.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
@@ -345,12 +574,33 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
         .armario-container {
           flex: 1;
           display: flex;
-          justify-content: center;
+          flex-direction: column;
+          justify-content: flex-start;
           align-items: center;
           background-color: var(--surface);
           border-radius: 8px;
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
           padding: 40px;
+          gap: 18px;
+          overflow: hidden;
+        }
+        .armario-container-header {
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+        }
+        .armario-container-title {
+          font-size: 22px;
+          font-weight: 800;
+          color: var(--text);
+          letter-spacing: 0.2px;
+        }
+        .armario-container-subtitle {
+          margin-top: 6px;
+          font-size: 13px;
+          color: var(--muted);
         }
         /* Fondo azul claro solo en tema claro */
         html:not([data-theme]) .armario-container,
@@ -358,11 +608,12 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
           background: linear-gradient(135deg, #e8f4f8 0%, #f0f8ff 50%, #e3f2fd 100%);
         }
         .armario-sidebar {
-          width: 300px;
+          width: 440px;
           background-color: var(--surface);
           border-radius: 8px;
           padding: 20px;
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          overflow: hidden;
         }
         /* Fondo azul un poco más oscuro solo en tema claro */
         html:not([data-theme]) .armario-sidebar,
@@ -374,6 +625,20 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
           margin-bottom: 20px;
           border-bottom: 1px solid var(--border);
           padding-bottom: 10px;
+        }
+        .armario-sidebar-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 12px;
+          padding-bottom: 10px;
+          border-bottom: 1px solid var(--border);
+        }
+        .armario-sidebar-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          flex-shrink: 0;
         }
         .detail-item {
           display: flex;
@@ -396,6 +661,10 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
           padding-right: 54px; /* space for side numbers */
           background-color: var(--surface);
           border-radius: 12px;
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
         /* Fondo azul claro solo en tema claro */
         html:not([data-theme]) .armario-scene,
@@ -516,6 +785,33 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
           /* Reservar espacio para ambas caras (superior y frontal) en la base */
           padding-bottom: calc(var(--armario-top) + 10px);
         }
+        .repisa-select-overlay {
+          position: absolute;
+          inset: 0;
+          z-index: 8;
+          border: 1px solid transparent;
+          background: transparent;
+          transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+          pointer-events: none;
+        }
+        .repisa-row:hover .repisa-select-overlay {
+          background-color: rgba(37, 99, 235, 0.10);
+          border-color: rgba(37, 99, 235, 0.45);
+        }
+        .repisa-row.selected .repisa-select-overlay {
+          background-color: rgba(37, 99, 235, 0.16);
+          border-color: rgba(37, 99, 235, 0.75);
+          box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.22) inset;
+        }
+        html[data-theme='dark'] .repisa-row:hover .repisa-select-overlay {
+          background-color: rgba(96, 165, 250, 0.12);
+          border-color: rgba(96, 165, 250, 0.55);
+        }
+        html[data-theme='dark'] .repisa-row.selected .repisa-select-overlay {
+          background-color: rgba(96, 165, 250, 0.18);
+          border-color: rgba(96, 165, 250, 0.85);
+          box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.28) inset;
+        }
         .repisa-front {
           position: absolute;
           left: 0;
@@ -620,6 +916,85 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
           background-color: var(--bg);
           color: var(--text);
           font-size: 1rem;
+        }
+        .form-group select {
+          width: 100%;
+          padding: 10px;
+          border-radius: 6px;
+          border: 1px solid var(--border);
+          background-color: var(--bg);
+          color: var(--text);
+          font-size: 1rem;
+        }
+
+        .repisa-filters {
+          display: grid;
+          grid-template-columns: 1.2fr 0.8fr;
+          gap: 10px;
+          padding: 10px;
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          background: rgba(148, 163, 184, 0.06);
+          margin-bottom: 10px;
+        }
+        .repisa-filters .form-group label {
+          font-size: 12px;
+          margin-bottom: 6px;
+          color: var(--muted);
+        }
+        .repisa-filters .form-group input,
+        .repisa-filters .form-group select {
+          padding: 8px 10px;
+          font-size: 14px;
+          border-radius: 10px;
+          height: 36px;
+        }
+
+        .repisa-results {
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          overflow: hidden;
+          margin-bottom: 10px;
+          background: rgba(148, 163, 184, 0.04);
+        }
+        .repisa-results-header {
+          padding: 8px 10px;
+          font-size: 12px;
+          color: var(--muted);
+          background: rgba(148, 163, 184, 0.08);
+          border-bottom: 1px solid var(--border);
+        }
+        .repisa-results-list {
+          max-height: 120px;
+          overflow: auto;
+        }
+        .repisa-result-item {
+          padding: 8px 10px;
+          border-top: 1px solid var(--border);
+          cursor: pointer;
+          transition: background-color 140ms ease;
+        }
+        .repisa-result-item:hover {
+          background: rgba(37, 99, 235, 0.08);
+        }
+        .repisa-result-item.active {
+          background: rgba(37, 99, 235, 0.12);
+        }
+        html[data-theme='dark'] .repisa-result-item:hover {
+          background: rgba(96, 165, 250, 0.10);
+        }
+        html[data-theme='dark'] .repisa-result-item.active {
+          background: rgba(96, 165, 250, 0.14);
+        }
+        .repisa-result-badge {
+          align-self: flex-start;
+          font-size: 11px;
+          padding: 2px 8px;
+          border-radius: 999px;
+          border: 1px solid rgba(0,0,0,0.10);
+          background: rgba(148, 163, 184, 0.10);
+          color: var(--muted);
+          white-space: nowrap;
         }
         .modal-actions {
           display: flex;
