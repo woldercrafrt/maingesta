@@ -423,11 +423,51 @@ html[data-theme='semi'] {
 
 .admin-table-header {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto;
   gap: 4px;
   padding: 0 14px 8px;
   font-size: 12px;
+}
+
+.admin-table-header .admin-table-cell:last-child {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table thead th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--muted);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-table tbody td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.admin-table tbody tr.admin-table-row {
+  cursor: pointer;
+}
+
+.admin-table tbody tr.admin-table-row:hover td {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.admin-table thead th:last-child,
+.admin-table tbody td:last-child {
+  text-align: right;
+  width: 1%;
+  white-space: nowrap;
 }
 
 .modal-backdrop {
@@ -650,6 +690,7 @@ html[data-theme='semi'] {
   align-items: center;
   gap: 6px;
   background-color: transparent;
+  flex-wrap: nowrap;
 }
 
 .action-button {

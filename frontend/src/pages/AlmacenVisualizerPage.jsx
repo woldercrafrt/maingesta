@@ -26,12 +26,15 @@ const AlmacenVisualizerPage = ({ theme, onThemeChange }) => {
   const [isEditMode, setIsEditMode] = useState(false)
   const clampZoom = (value) => Math.min(3, Math.max(0.5, value))
 
+  const ARMARIO_DISPLAY_ANCHO = 0.12
+  const ARMARIO_DISPLAY_ALTO = 0.18
+
   const getArmarioLayout = (armario) => {
     return {
       posX: armario.posX !== null ? armario.posX : 0,
       posY: armario.posY !== null ? armario.posY : 0,
-      ancho: armario.ancho !== null ? armario.ancho : 0.12,
-      alto: armario.alto !== null ? armario.alto : 0.6,
+      ancho: ARMARIO_DISPLAY_ANCHO,
+      alto: ARMARIO_DISPLAY_ALTO,
       rotacion: typeof armario.rotacion === 'number' ? armario.rotacion : 0.0,
     }
   }
@@ -136,37 +139,6 @@ const AlmacenVisualizerPage = ({ theme, onThemeChange }) => {
          const angle = Math.atan2(event.clientY - cy, event.clientX - cx) * (180 / Math.PI)
          const deg = angle + 90
          actualizarArmarioLocal(drag.armarioId, { rotacion: deg })
-    } else if (drag.actionType && drag.actionType.startsWith('resize')) {
-         const deltaX = dxPx / drag.rect.width
-         const deltaY = dyPx / drag.rect.height
-         
-         const rad = (drag.startLayout.rotacion || 0) * (Math.PI / 180)
-         const cos = Math.cos(rad)
-         const sin = Math.sin(rad)
-         
-         const dxLocal = deltaX * cos + deltaY * sin
-         const dyLocal = -deltaX * sin + deltaY * cos
-         
-         let dW = 0
-         let dH = 0
-         
-         if (drag.actionType === 'resize-se') { dW = dxLocal * 2; dH = dyLocal * 2 }
-         else if (drag.actionType === 'resize-nw') { dW = -dxLocal * 2; dH = -dyLocal * 2 }
-         else if (drag.actionType === 'resize-sw') { dW = -dxLocal * 2; dH = dyLocal * 2 }
-         else if (drag.actionType === 'resize-ne') { dW = dxLocal * 2; dH = -dyLocal * 2 }
-         
-         const newW = Math.max(0.01, drag.startLayout.ancho + dW)
-         const newH = Math.max(0.01, drag.startLayout.alto + dH)
-         
-         const newX = drag.startLayout.posX - (newW - drag.startLayout.ancho)/2
-         const newY = drag.startLayout.posY - (newH - drag.startLayout.alto)/2
-         
-         actualizarArmarioLocal(drag.armarioId, { 
-             ancho: newW, 
-             alto: newH,
-             posX: newX,
-             posY: newY
-         })
     }
   }
 
@@ -180,7 +152,13 @@ const AlmacenVisualizerPage = ({ theme, onThemeChange }) => {
         return
     }
     const armario = estructura?.armarios?.find((a) => a.id === drag.armarioId)
-    if (armario) guardarPosicionArmario(drag.armarioId, getArmarioLayout(armario))
+    if (armario) {
+      guardarPosicionArmario(drag.armarioId, {
+        posX: armario.posX,
+        posY: armario.posY,
+        rotacion: armario.rotacion,
+      })
+    }
   }
 
   useEffect(() => {
@@ -514,10 +492,6 @@ const AlmacenVisualizerPage = ({ theme, onThemeChange }) => {
                                   <span className="armario-box-label" style={{ transform: `rotate(-${layout.rotacion}deg)` }}>{armario.nombre}</span>
                                   {isEditMode && selectedArmarioIdForEdit === armario.id && (
                                      <>
-                                         <div className="resize-handle nw" onPointerDown={(e) => onHandlePointerDown(e, armario, 'resize-nw')} />
-                                         <div className="resize-handle ne" onPointerDown={(e) => onHandlePointerDown(e, armario, 'resize-ne')} />
-                                         <div className="resize-handle sw" onPointerDown={(e) => onHandlePointerDown(e, armario, 'resize-sw')} />
-                                         <div className="resize-handle se" onPointerDown={(e) => onHandlePointerDown(e, armario, 'resize-se')} />
                                          <div className="rotate-connector" />
                                          <div className="rotate-handle" onPointerDown={(e) => onHandlePointerDown(e, armario, 'rotate')} />
                                      </>

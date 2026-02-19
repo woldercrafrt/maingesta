@@ -41,6 +41,9 @@ import java.util.Set;
 @RequestMapping("/api/almacenes")
 public class AlmacenController {
 
+    private static final double ARMARIO_DISPLAY_ANCHO = 0.12;
+    private static final double ARMARIO_DISPLAY_ALTO = 0.18;
+
     private final AlmacenRepository almacenRepository;
     private final EmpresaRepository empresaRepository;
     private final ArmarioRepository armarioRepository;
@@ -213,7 +216,7 @@ public class AlmacenController {
      * @return
      */
     @PatchMapping("/{almacenId}")
-    public ResponseEntity<AlmacenDto> actualizar(@PathVariable Long almacenId, @RequestBody AlmacenUpdateDto dto) {
+    public ResponseEntity<AlmacenDto> actualizar(@PathVariable("almacenId") Long almacenId, @RequestBody AlmacenUpdateDto dto) {
         Usuario actor = currentUsuario();
         if (actor == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -245,7 +248,7 @@ public class AlmacenController {
 
     @DeleteMapping("/{almacenId}")
     @Transactional
-    public ResponseEntity<Void> eliminar(@PathVariable Long almacenId) {
+    public ResponseEntity<Void> eliminar(@PathVariable("almacenId") Long almacenId) {
         Usuario actor = currentUsuario();
         if (actor == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -286,7 +289,7 @@ public class AlmacenController {
     }
 
     @GetMapping("/{almacenId}/estructura")
-    public ResponseEntity<AlmacenEstructuraDto> obtenerEstructura(@PathVariable Long almacenId) {
+    public ResponseEntity<AlmacenEstructuraDto> obtenerEstructura(@PathVariable("almacenId") Long almacenId) {
         Usuario actor = currentUsuario();
         if (actor == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -430,7 +433,7 @@ public class AlmacenController {
     }
 
     @GetMapping("/armarios/{armarioId}")
-    public ResponseEntity<ArmarioDto> obtenerArmario(@PathVariable Long armarioId) {
+    public ResponseEntity<ArmarioDto> obtenerArmario(@PathVariable("armarioId") Long armarioId) {
         Usuario actor = currentUsuario();
         if (actor == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -472,7 +475,7 @@ public class AlmacenController {
 
     @PostMapping("/{almacenId}/armarios")
     public ResponseEntity<ArmarioDto> crearArmario(
-            @PathVariable Long almacenId,
+            @PathVariable("almacenId") Long almacenId,
             @RequestBody ArmarioCreateDto dto
     ) {
         Usuario actor = currentUsuario();
@@ -516,7 +519,7 @@ public class AlmacenController {
 
     @PatchMapping("/armarios/{armarioId}/posicion")
     public ResponseEntity<ArmarioDto> actualizarPosicionArmario(
-            @PathVariable Long armarioId,
+            @PathVariable("armarioId") Long armarioId,
             @RequestBody ArmarioPosicionDto dto
     ) {
         Usuario actor = currentUsuario();
@@ -540,11 +543,14 @@ public class AlmacenController {
 
         posX = clampNormalizedOrNull(posX, 0.0);
         posY = clampNormalizedOrNull(posY, 0.0);
-        if (ancho != null && posX != null && posX + ancho > 1.0) {
-            posX = 1.0 - ancho;
+
+        double clampAncho = ARMARIO_DISPLAY_ANCHO;
+        double clampAlto = ARMARIO_DISPLAY_ALTO;
+        if (posX != null && posX + clampAncho > 1.0) {
+            posX = 1.0 - clampAncho;
         }
-        if (alto != null && posY != null && posY + alto > 1.0) {
-            posY = 1.0 - alto;
+        if (posY != null && posY + clampAlto > 1.0) {
+            posY = 1.0 - clampAlto;
         }
 
         armario.setPosX(posX);
@@ -582,7 +588,7 @@ public class AlmacenController {
 
     @PostMapping("/armarios/{armarioId}/repisas")
     public ResponseEntity<RepisaDto> crearRepisa(
-            @PathVariable Long armarioId,
+            @PathVariable("armarioId") Long armarioId,
             @RequestBody RepisaCreateDto dto
     ) {
         Usuario actor = currentUsuario();

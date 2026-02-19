@@ -38,6 +38,13 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
   const [isLoadingInventario, setIsLoadingInventario] = useState(false)
   const [almacenFilterNombre, setAlmacenFilterNombre] = useState('')
   const [almacenFilterEmpresa, setAlmacenFilterEmpresa] = useState('')
+  const [inventarioFilterEmpresa, setInventarioFilterEmpresa] = useState('')
+  const [inventarioFilterAlmacen, setInventarioFilterAlmacen] = useState('')
+  const [inventarioFilterItem, setInventarioFilterItem] = useState('')
+  const [armariosFilterEmpresa, setArmariosFilterEmpresa] = useState('')
+  const [armariosFilterAlmacen, setArmariosFilterAlmacen] = useState('')
+  const [armariosFilterArmario, setArmariosFilterArmario] = useState('')
+  const [visualizarArmarioFilter, setVisualizarArmarioFilter] = useState('')
   const [showCreateItemModal, setShowCreateItemModal] = useState(false)
   const [formItemEmpresaId, setFormItemEmpresaId] = useState('')
   const [formItemAlmacenId, setFormItemAlmacenId] = useState('')
@@ -66,6 +73,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
   const [formArmarioMeasureMode, setFormArmarioMeasureMode] = useState('metros')
   const [isSavingArmario, setIsSavingArmario] = useState(false)
   const role = localStorage.getItem('maingest-role') || 'ADMIN'
+  const isGlobalUser = role === 'ADMIN'
   const roleLabel =
     role === 'ADMIN' ? 'Super administrador' : role === 'ADMIN_EMPRESA' ? 'Admin de empresa' : 'Admin de almacén'
   const canvasRef = useRef(null)
@@ -426,14 +434,15 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
       .catch(() => null)
   }
 
+  const ARMARIO_DISPLAY_ANCHO = 0.12
+  const ARMARIO_DISPLAY_ALTO = 0.18
+
   const getArmarioLayout = (armario) => {
     const posX = typeof armario.posX === 'number' ? armario.posX : 0.06
     const posY = typeof armario.posY === 'number' ? armario.posY : 0.12
-    const ancho = typeof armario.ancho === 'number' ? armario.ancho : 0.12
-    const alto = typeof armario.alto === 'number' ? armario.alto : 0.6
     const rotacion = typeof armario.rotacion === 'number' ? armario.rotacion : 0.0
-    const safeAncho = Math.max(0.01, clamp01(ancho))
-    const safeAlto = Math.max(0.01, clamp01(alto))
+    const safeAncho = Math.max(0.01, clamp01(ARMARIO_DISPLAY_ANCHO))
+    const safeAlto = Math.max(0.01, clamp01(ARMARIO_DISPLAY_ALTO))
     return {
       posX: clamp01(Math.min(posX, 1 - safeAncho)),
       posY: clamp01(Math.min(posY, 1 - safeAlto)),
@@ -522,46 +531,6 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
         const angle = Math.atan2(event.clientY - cy, event.clientX - cx) * (180 / Math.PI)
         const deg = angle + 90
         actualizarArmarioLocal(drag.armarioId, { rotacion: deg })
-    } else if (drag.actionType && drag.actionType.startsWith('resize')) {
-        // Project delta onto rotated axes
-        const rad = (drag.startLayout.rotacion || 0) * (Math.PI / 180)
-        const cos = Math.cos(rad)
-        const sin = Math.sin(rad)
-        
-        // Unrotated delta in normalized coords
-        // Note: deltaX/Y are normalized (0-1)
-        const dxLocal = deltaX * cos + deltaY * sin
-        const dyLocal = -deltaX * sin + deltaY * cos
-        
-        let dW = 0
-        let dH = 0
-        
-        if (drag.actionType === 'resize-se') {
-            dW = dxLocal * 2
-            dH = dyLocal * 2
-        } else if (drag.actionType === 'resize-nw') {
-            dW = -dxLocal * 2
-            dH = -dyLocal * 2
-        } else if (drag.actionType === 'resize-sw') {
-            dW = -dxLocal * 2
-            dH = dyLocal * 2
-        } else if (drag.actionType === 'resize-ne') {
-            dW = dxLocal * 2
-            dH = -dyLocal * 2
-        }
-        
-        const newW = Math.max(0.01, drag.startLayout.ancho + dW)
-        const newH = Math.max(0.01, drag.startLayout.alto + dH)
-        
-        const newX = drag.startLayout.posX - (newW - drag.startLayout.ancho)/2
-        const newY = drag.startLayout.posY - (newH - drag.startLayout.alto)/2
-        
-        actualizarArmarioLocal(drag.armarioId, { 
-            ancho: newW, 
-            alto: newH,
-            posX: newX,
-            posY: newY
-        })
     }
   }
 
@@ -580,8 +549,11 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
     if (!armario) {
       return
     }
-    const layout = getArmarioLayout(armario)
-    guardarPosicionArmario(drag.armarioId, layout)
+    guardarPosicionArmario(drag.armarioId, {
+      posX: armario.posX,
+      posY: armario.posY,
+      rotacion: armario.rotacion,
+    })
   }
 
   const handleCrearAlmacen = () => {
@@ -910,9 +882,70 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
           almacen.nombre.toLowerCase().includes(almacenFilterNombre.toLowerCase()))
       const empresaNombre = almacen.empresaNombre || ''
       const empresaOk =
+        !isGlobalUser ||
         !almacenFilterEmpresa ||
         empresaNombre.toLowerCase().includes(almacenFilterEmpresa.toLowerCase())
       return nombreOk && empresaOk
+    })
+  })()
+
+  const uniqueArmarios = (() => {
+    if (!repisasGlobalData) return []
+
+    const armariosMap = new Map()
+    repisasGlobalData.forEach((row) => {
+      if (!row.armarioId) return
+      if (!armariosMap.has(row.armarioId)) {
+        armariosMap.set(row.armarioId, {
+          ...row,
+          repisasCount: 0,
+        })
+      }
+      if (row.repisaId) {
+        armariosMap.get(row.armarioId).repisasCount += 1
+      }
+    })
+
+    return Array.from(armariosMap.values())
+  })()
+
+  const armariosFiltrados = (() => {
+    const empresaNeedle = isGlobalUser ? (armariosFilterEmpresa || '').trim().toLowerCase() : ''
+    const almacenNeedle = (armariosFilterAlmacen || '').trim().toLowerCase()
+    const armarioNeedle = (armariosFilterArmario || '').trim().toLowerCase()
+
+    return (uniqueArmarios || []).filter((fila) => {
+      const empresaLabel = (fila.empresaNombre || `Empresa #${fila.empresaId}` || '').toLowerCase()
+      const almacenLabel = (fila.almacenNombre || `Almacén #${fila.almacenId}` || '').toLowerCase()
+      const armarioLabel = (fila.armarioNombre || `Armario #${fila.armarioId}` || '').toLowerCase()
+
+      const empresaOk = !empresaNeedle || empresaLabel.includes(empresaNeedle)
+      const almacenOk = !almacenNeedle || almacenLabel.includes(almacenNeedle)
+      const armarioOk = !armarioNeedle || armarioLabel.includes(armarioNeedle)
+      return empresaOk && almacenOk && armarioOk
+    })
+  })()
+
+  const visualizadorArmariosFiltrados = (() => {
+    const armarios = estructura?.armarios || []
+    const needle = (visualizarArmarioFilter || '').trim().toLowerCase()
+    if (!needle) return armarios
+    return armarios.filter((a) => (a?.nombre || '').toLowerCase().includes(needle))
+  })()
+
+  const inventarioFiltrado = (() => {
+    if (!inventarioData) return []
+    const empresaNeedle = isGlobalUser ? (inventarioFilterEmpresa || '').trim().toLowerCase() : ''
+    const almacenNeedle = (inventarioFilterAlmacen || '').trim().toLowerCase()
+    const itemNeedle = (inventarioFilterItem || '').trim().toLowerCase()
+    return inventarioData.filter((fila) => {
+      const empresaLabel = (fila.empresaNombre || `Empresa #${fila.empresaId}` || '').toLowerCase()
+      const almacenLabel = (fila.almacenNombre || `Almacén #${fila.almacenId}` || '').toLowerCase()
+      const itemLabel = (fila.itemNombre || `Item #${fila.itemId}` || '').toLowerCase()
+      const empresaOk = !empresaNeedle || empresaLabel.includes(empresaNeedle)
+      const almacenOk = !almacenNeedle || almacenLabel.includes(almacenNeedle)
+      const itemOk = !itemNeedle || itemLabel.includes(itemNeedle)
+      return empresaOk && almacenOk && itemOk
     })
   })()
 
@@ -993,12 +1026,16 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                     value={almacenFilterNombre}
                     onChange={(event) => setAlmacenFilterNombre(event.target.value)}
                   />
-                  <input
-                    type="text"
-                    placeholder="Filtrar por empresa"
-                    value={almacenFilterEmpresa}
-                    onChange={(event) => setAlmacenFilterEmpresa(event.target.value)}
-                  />
+                  {isGlobalUser ? (
+                    <input
+                      type="text"
+                      placeholder="Filtrar por empresa"
+                      value={almacenFilterEmpresa}
+                      onChange={(event) => setAlmacenFilterEmpresa(event.target.value)}
+                    />
+                  ) : (
+                    <div />
+                  )}
                   <div />
                 </div>
                 <div className="admin-table-actions">
@@ -1017,98 +1054,110 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                     </button>
                   )}
                 </div>
-                <div className="admin-table-header">
-                  <div className="admin-table-cell">Nombre del almacén</div>
-                  <div className="admin-table-cell">Empresa</div>
-                  <div className="admin-table-cell">Estado</div>
-                  <div className="admin-table-cell">Acciones</div>
-                </div>
-                {isLoading && (
-                  <div className="admin-table-header admin-table-row">
-                    <div className="admin-table-cell">Cargando almacenes…</div>
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                  </div>
-                )}
-                {error && !isLoading && (
-                  <div className="admin-table-header admin-table-row">
-                    <div className="admin-table-cell">{error}</div>
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                  </div>
-                )}
-                {!error && !isLoading && almacenesFiltrados.length === 0 && (
-                  <div className="admin-table-header admin-table-row">
-                    <div className="admin-table-cell">Aún no hay almacenes.</div>
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                  </div>
-                )}
-                {!error &&
-                  !isLoading &&
-                  almacenesFiltrados.map((almacen) => {
-                    const empresaNombre = almacen.empresaNombre || `Empresa #${almacen.empresaId}`
-                    const esSeleccionado = selectedAlmacenId === almacen.id
-                    return (
-                      <div
-                        key={almacen.id}
-                        className="admin-table-header admin-table-row"
-                        onClick={() => setSelectedAlmacenId(almacen.id)}
-                      >
-                        <div className="admin-table-cell">{almacen.nombre}</div>
-                        <div className="admin-table-cell">{empresaNombre}</div>
-                        <div className="admin-table-cell">
-                          {esSeleccionado ? 'Seleccionado para diseño' : 'Disponible'}
-                        </div>
-                        <div className="admin-table-cell">
-                          <div className="acciones-buttons">
-                            {canEdit('almacen') && (
-                              <button
-                                type="button"
-                                className="action-button edit-button"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  openEditAlmacenModal(almacen)
-                                }}
-                                title="Editar almacén"
-                              >
-                                ✏️ Editar
-                              </button>
-                            )}
-                            {canDelete('almacen') && (
-                              <button
-                                type="button"
-                                className="action-button delete-button"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  openDeleteAlmacenModal(almacen)
-                                }}
-                                title="Eliminar almacén"
-                              >
-                                🗑️ Eliminar
-                              </button>
-                            )}
-                            {canView('almacen') && (
-                              <button
-                                type="button"
-                                className="action-button view-button"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  navigate(`/almacen/${almacen.id}`)
-                                }}
-                                title="Ver almacén"
-                              >
-                                👁️ Ver
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Nombre del almacén</th>
+                      <th>Empresa</th>
+                      <th>Estado</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {isLoading && (
+                      <tr>
+                        <td>Cargando almacenes…</td>
+                        <td />
+                        <td />
+                        <td />
+                      </tr>
+                    )}
+                    {error && !isLoading && (
+                      <tr>
+                        <td>{error}</td>
+                        <td />
+                        <td />
+                        <td />
+                      </tr>
+                    )}
+                    {!error && !isLoading && almacenesFiltrados.length === 0 && (
+                      <tr>
+                        <td>Aún no hay almacenes.</td>
+                        <td />
+                        <td />
+                        <td />
+                      </tr>
+                    )}
+                    {!error &&
+                      !isLoading &&
+                      almacenesFiltrados.map((almacen) => {
+                        const empresaNombre = almacen.empresaNombre || `Empresa #${almacen.empresaId}`
+                        const esSeleccionado = selectedAlmacenId === almacen.id
+                        return (
+                          <tr
+                            key={almacen.id}
+                            className="admin-table-row"
+                            onClick={() => setSelectedAlmacenId(almacen.id)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault()
+                                setSelectedAlmacenId(almacen.id)
+                              }
+                            }}
+                          >
+                            <td>{almacen.nombre}</td>
+                            <td>{empresaNombre}</td>
+                            <td>{esSeleccionado ? 'Seleccionado para diseño' : 'Disponible'}</td>
+                            <td>
+                              <div className="acciones-buttons">
+                                {canEdit('almacen') && (
+                                  <button
+                                    type="button"
+                                    className="action-button edit-button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      openEditAlmacenModal(almacen)
+                                    }}
+                                    title="Editar almacén"
+                                  >
+                                    ✏️ Editar
+                                  </button>
+                                )}
+                                {canDelete('almacen') && (
+                                  <button
+                                    type="button"
+                                    className="action-button delete-button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      openDeleteAlmacenModal(almacen)
+                                    }}
+                                    title="Eliminar almacén"
+                                  >
+                                    🗑️ Eliminar
+                                  </button>
+                                )}
+                                {canView('almacen') && (
+                                  <button
+                                    type="button"
+                                    className="action-button view-button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      navigate(`/almacen/${almacen.id}`)
+                                    }}
+                                    title="Ver almacén"
+                                  >
+                                    👁️ Ver
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                  </tbody>
+                </table>
               </div>
             </>
           )}
@@ -1118,97 +1167,118 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
               <p className="admin-main-text">
                 Visualiza todo lo que hay dentro de los almacenes, armarios y repisas.
               </p>
-              <div className="admin-table-actions">
-                {canCreate('item') && (
-                  <button
-                    type="button"
-                    className="theme-button"
-                    onClick={() => {
-                      setShowCreateItemModal(true)
-                      setFormItemEmpresaId('')
-                      setFormItemAlmacenId('')
-                      setFormItemArmarioId('')
-                      setFormItemRepisaId('')
-                      setFormItemNombre('')
-                      setFormItemEstado('BUENO')
-                      setFormItemTamanio('1')
-                    }}
-                  >
-                    + Agregar inventario
-                  </button>
-                )}
-              </div>
               <div className="admin-table-shell">
-                <div className="admin-table-header">
-                  <div className="admin-table-cell">Empresa</div>
-                  <div className="admin-table-cell">Almacén</div>
-                  <div className="admin-table-cell">Armario / Repisa</div>
-                  <div className="admin-table-cell">Item</div>
+                <div className="admin-table-filters">
+                  {isGlobalUser ? (
+                    <input
+                      type="text"
+                      placeholder="Filtrar por empresa"
+                      value={inventarioFilterEmpresa}
+                      onChange={(event) => setInventarioFilterEmpresa(event.target.value)}
+                    />
+                  ) : (
+                    <div />
+                  )}
+                  <input
+                    type="text"
+                    placeholder="Filtrar por almacén"
+                    value={inventarioFilterAlmacen}
+                    onChange={(event) => setInventarioFilterAlmacen(event.target.value)}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Filtrar por item"
+                    value={inventarioFilterItem}
+                    onChange={(event) => setInventarioFilterItem(event.target.value)}
+                  />
                 </div>
-                {isLoadingInventario && !error && (
-                  <div className="admin-table-header admin-table-row">
-                    <div className="admin-table-cell">Cargando inventario…</div>
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                  </div>
-                )}
-                {error && (
-                  <div className="admin-table-header admin-table-row">
-                    <div className="admin-table-cell">{error}</div>
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                  </div>
-                )}
-                {!error &&
-                  !isLoadingInventario &&
-                  inventarioData &&
-                  inventarioData.map((fila) => {
-                    const ubicacion = `${fila.armarioNombre || `Armario #${fila.armarioId}`} · Repisa ${
-                      fila.repisaNivel
-                    }`
-                    const itemLabel = fila.itemNombre || `Item #${fila.itemId}`
-                    const meta = []
-                    if (fila.itemEstado) {
-                      meta.push(fila.itemEstado)
-                    }
-                    if (typeof fila.itemTamanio === 'number') {
-                      meta.push(`${fila.itemTamanio} u.`)
-                    }
-                    const metaLabel = meta.join(' · ')
-                    return (
-                      <div
-                        key={`${fila.empresaId}-${fila.almacenId}-${fila.armarioId}-${fila.repisaId}-${fila.itemId}`}
-                        className="admin-table-header admin-table-row"
-                      >
-                        <div className="admin-table-cell">
-                          {fila.empresaNombre || `Empresa #${fila.empresaId}`}
-                        </div>
-                        <div className="admin-table-cell">
-                          {fila.almacenNombre || `Almacén #${fila.almacenId}`}
-                        </div>
-                        <div className="admin-table-cell">
-                          {ubicacion}
-                        </div>
-                        <div className="admin-table-cell">
-                          {itemLabel}
-                          {metaLabel ? ` · ${metaLabel}` : ''}
-                        </div>
-                      </div>
-                    )
-                  })}
+                <div className="admin-table-actions">
+                  {canCreate('item') && (
+                    <button
+                      type="button"
+                      className="theme-button"
+                      onClick={() => {
+                        setShowCreateItemModal(true)
+                        setFormItemEmpresaId('')
+                        setFormItemAlmacenId('')
+                        setFormItemArmarioId('')
+                        setFormItemRepisaId('')
+                        setFormItemNombre('')
+                        setFormItemEstado('BUENO')
+                        setFormItemTamanio('1')
+                      }}
+                    >
+                      + Agregar inventario
+                    </button>
+                  )}
+                </div>
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Empresa</th>
+                      <th>Almacén</th>
+                      <th>Armario / Repisa</th>
+                      <th>Item</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {isLoadingInventario && !error && (
+                      <tr>
+                        <td>Cargando inventario…</td>
+                        <td />
+                        <td />
+                        <td />
+                      </tr>
+                    )}
+                    {error && (
+                      <tr>
+                        <td>{error}</td>
+                        <td />
+                        <td />
+                        <td />
+                      </tr>
+                    )}
+                    {!error &&
+                      !isLoadingInventario &&
+                      inventarioFiltrado &&
+                      inventarioFiltrado.map((fila) => {
+                        const ubicacion = `${fila.armarioNombre || `Armario #${fila.armarioId}`} · Repisa ${
+                          fila.repisaNivel
+                        }`
+                        const itemLabel = fila.itemNombre || `Item #${fila.itemId}`
+                        const meta = []
+                        if (fila.itemEstado) {
+                          meta.push(fila.itemEstado)
+                        }
+                        if (typeof fila.itemTamanio === 'number') {
+                          meta.push(`${fila.itemTamanio} u.`)
+                        }
+                        const metaLabel = meta.join(' · ')
+                        return (
+                          <tr key={`${fila.empresaId}-${fila.almacenId}-${fila.armarioId}-${fila.repisaId}-${fila.itemId}`}
+                          >
+                            <td>{fila.empresaNombre || `Empresa #${fila.empresaId}`}</td>
+                            <td>{fila.almacenNombre || `Almacén #${fila.almacenId}`}</td>
+                            <td>{ubicacion}</td>
+                            <td>
+                              {itemLabel}
+                              {metaLabel ? ` · ${metaLabel}` : ''}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                  </tbody>
+                </table>
               </div>
 
               {showCreateItemModal && (
-                <div className="modal-backdrop" onClick={() => setShowCreateItemModal(false)}>
-                  <div className="modal" onClick={(e) => e.stopPropagation()}>
-                    <h3 className="modal-title">Agregar inventario</h3>
-                    <p className="modal-text">Selecciona la ubicación y completa los datos del item.</p>
+                <div className="modal-overlay">
+                  <div className="modal-content">
+                    <h3>Agregar inventario</h3>
 
-                    <div className="modal-form">
-
-                      {role === 'ADMIN' ? (
+                    {role === 'ADMIN' && (
+                      <div className="form-group">
+                        <label>Empresa</label>
                         <select
                           value={formItemEmpresaId}
                           onChange={(e) => {
@@ -1225,8 +1295,11 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                             </option>
                           ))}
                         </select>
-                      ) : null}
+                      </div>
+                    )}
 
+                    <div className="form-group">
+                      <label>Almacén</label>
                       <select
                         value={formItemAlmacenId}
                         onChange={(e) => {
@@ -1248,7 +1321,10 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                             </option>
                           ))}
                       </select>
+                    </div>
 
+                    <div className="form-group">
+                      <label>Armario</label>
                       <select
                         value={formItemArmarioId}
                         onChange={(e) => {
@@ -1271,7 +1347,10 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                           </option>
                         ))}
                       </select>
+                    </div>
 
+                    <div className="form-group">
+                      <label>Repisa</label>
                       <select
                         value={formItemRepisaId}
                         onChange={(e) => setFormItemRepisaId(e.target.value)}
@@ -1288,20 +1367,29 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                             </option>
                           ))}
                       </select>
+                    </div>
 
+                    <div className="form-group">
+                      <label>Nombre del item</label>
                       <input
                         type="text"
                         value={formItemNombre}
                         onChange={(e) => setFormItemNombre(e.target.value)}
                         placeholder="Ej. Tornillos"
                       />
+                    </div>
 
+                    <div className="form-group">
+                      <label>Estado</label>
                       <select value={formItemEstado} onChange={(e) => setFormItemEstado(e.target.value)}>
                         <option value="BUENO">BUENO</option>
                         <option value="REGULAR">REGULAR</option>
                         <option value="MALO">MALO</option>
                       </select>
+                    </div>
 
+                    <div className="form-group">
+                      <label>Tamaño</label>
                       <input
                         type="number"
                         min="1"
@@ -1313,7 +1401,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
 
                     <div className="modal-actions">
                       <button
-                        className="theme-button"
+                        className="theme-button secondary"
                         type="button"
                         onClick={() => setShowCreateItemModal(false)}
                         disabled={isSavingItem}
@@ -1348,86 +1436,87 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
               <p className="admin-main-text">
                 Revisa y gestiona los armarios de todos tus almacenes.
               </p>
-              <div className="admin-table-actions">
-                {canCreate('armario') && (
-                  <button
-                    type="button"
-                    className="theme-button"
-                    onClick={() => {
-                      setFormArmarioNombre('')
-                      setFormArmarioAncho('0.12')
-                      setFormArmarioAlto('0.6')
-                      setFormArmarioAlmacenId('')
-                      setFormArmarioEmpresaId('')
-                      setShowCreateArmarioModal(true)
-                    }}
-                  >
-                    Nuevo armario
-                  </button>
-                )}
-              </div>
               <div className="admin-table-shell">
-                <div className="admin-table-header">
-                  <div className="admin-table-cell">Empresa</div>
-                  <div className="admin-table-cell">Almacén</div>
-                  <div className="admin-table-cell">Armario</div>
-                  <div className="admin-table-cell">Repisas</div>
-                  <div className="admin-table-cell">Acciones</div>
-                </div>
-                {isLoadingRepisasGlobal && !repisasGlobalData && (
-                  <div className="admin-table-header admin-table-row">
-                    <div className="admin-table-cell">Cargando estructura…</div>
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                  </div>
-                )}
-                {!isLoadingRepisasGlobal &&
-                  repisasGlobalData &&
-                  repisasGlobalData.length === 0 && (
-                    <div className="admin-table-header admin-table-row">
-                      <div className="admin-table-cell">
-                        No hay armarios registrados.
-                      </div>
-                      <div className="admin-table-cell" />
-                      <div className="admin-table-cell" />
-                      <div className="admin-table-cell" />
-                      <div className="admin-table-cell" />
-                    </div>
+                <div className="admin-table-filters">
+                  {isGlobalUser ? (
+                    <input
+                      type="text"
+                      placeholder="Filtrar por empresa"
+                      value={armariosFilterEmpresa}
+                      onChange={(event) => setArmariosFilterEmpresa(event.target.value)}
+                    />
+                  ) : (
+                    <div />
                   )}
-                {(() => {
-                    // Group flattened data by armarioId to show unique armarios
-                    if (!repisasGlobalData) return null
-                    
-                    const armariosMap = new Map()
-                    repisasGlobalData.forEach(row => {
-                        if (!row.armarioId) return
-                        if (!armariosMap.has(row.armarioId)) {
-                            armariosMap.set(row.armarioId, {
-                                ...row,
-                                repisasCount: 0
-                            })
-                        }
-                        if (row.repisaId) {
-                            armariosMap.get(row.armarioId).repisasCount += 1
-                        }
-                    })
-                    
-                    const uniqueArmarios = Array.from(armariosMap.values())
-                    
-                    return uniqueArmarios.map((fila, index) => (
-                      <div
-                        key={`${fila.almacenId}-${fila.armarioId}-${index}`}
-                        className="admin-table-header admin-table-row"
-                      >
-                        <div className="admin-table-cell">{fila.empresaNombre}</div>
-                        <div className="admin-table-cell">{fila.almacenNombre}</div>
-                        <div className="admin-table-cell">{fila.armarioNombre}</div>
-                        <div className="admin-table-cell">
-                          {fila.repisasCount} repisas
-                        </div>
-                        <div className="admin-table-cell">
+                  <input
+                    type="text"
+                    placeholder="Filtrar por almacén"
+                    value={armariosFilterAlmacen}
+                    onChange={(event) => setArmariosFilterAlmacen(event.target.value)}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Filtrar por armario"
+                    value={armariosFilterArmario}
+                    onChange={(event) => setArmariosFilterArmario(event.target.value)}
+                  />
+                </div>
+                <div className="admin-table-actions">
+                  {canCreate('armario') && (
+                    <button
+                      type="button"
+                      className="theme-button"
+                      onClick={() => {
+                        setFormArmarioNombre('')
+                        setFormArmarioAncho('0.12')
+                        setFormArmarioAlto('0.6')
+                        setFormArmarioAlmacenId('')
+                        setFormArmarioEmpresaId('')
+                        setShowCreateArmarioModal(true)
+                      }}
+                    >
+                      Nuevo armario
+                    </button>
+                  )}
+                </div>
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Empresa</th>
+                      <th>Almacén</th>
+                      <th>Armario</th>
+                      <th>Repisas</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {isLoadingRepisasGlobal && !repisasGlobalData && (
+                      <tr>
+                        <td>Cargando estructura…</td>
+                        <td />
+                        <td />
+                        <td />
+                        <td />
+                      </tr>
+                    )}
+                    {!isLoadingRepisasGlobal && repisasGlobalData && repisasGlobalData.length === 0 && (
+                      <tr>
+                        <td>No hay armarios registrados.</td>
+                        <td />
+                        <td />
+                        <td />
+                        <td />
+                      </tr>
+                    )}
+                    {(() => {
+                      if (!armariosFiltrados) return null
+                      return armariosFiltrados.map((fila, index) => (
+                        <tr key={`${fila.almacenId}-${fila.armarioId}-${index}`}>
+                          <td>{fila.empresaNombre}</td>
+                          <td>{fila.almacenNombre}</td>
+                          <td>{fila.armarioNombre}</td>
+                          <td>{fila.repisasCount} repisas</td>
+                          <td>
                             <div className="acciones-buttons">
                               {canView('armario') && (
                                 <button
@@ -1443,10 +1532,12 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                                 </button>
                               )}
                             </div>
-                        </div>
-                      </div>
-                    ))
-                })()}
+                          </td>
+                        </tr>
+                      ))
+                    })()}
+                  </tbody>
+                </table>
               </div>
             </>
           )}
@@ -1456,26 +1547,35 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
               <p className="admin-main-text">
                 Visualiza el almacén con su forma y los armarios/repisas ubicados dentro.
               </p>
-              <div className="admin-table-actions">
-                <select
-                  value={selectedAlmacenId || ''}
-                  onChange={(event) => {
-                    const value = event.target.value
-                    if (!value) {
-                      setSelectedAlmacenId(null)
-                      return
-                    }
-                    setSelectedAlmacenId(Number(value))
-                  }}
-                >
-                  <option value="">Selecciona un almacén</option>
-                  {almacenes &&
-                    almacenes.map((almacen) => (
-                      <option key={almacen.id} value={almacen.id}>
-                        {almacen.nombre}
-                      </option>
-                    ))}
-                </select>
+              <div className="admin-table-shell">
+                <div className="admin-table-filters">
+                  <select
+                    value={selectedAlmacenId || ''}
+                    onChange={(event) => {
+                      const value = event.target.value
+                      if (!value) {
+                        setSelectedAlmacenId(null)
+                        return
+                      }
+                      setSelectedAlmacenId(Number(value))
+                    }}
+                  >
+                    <option value="">Selecciona un almacén</option>
+                    {almacenes &&
+                      almacenes.map((almacen) => (
+                        <option key={almacen.id} value={almacen.id}>
+                          {almacen.nombre}
+                        </option>
+                      ))}
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Filtrar armarios por nombre"
+                    value={visualizarArmarioFilter}
+                    onChange={(event) => setVisualizarArmarioFilter(event.target.value)}
+                  />
+                  <div />
+                </div>
               </div>
       {selectedAlmacenId && estructura && (
                 <div className="almacen-visualizacion">
@@ -1542,11 +1642,11 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                                         }}
                                         onMouseUp={(e) => {
                                             const newRot = Number(e.target.value)
-                                            guardarPosicionArmario(armario.id, { ...layout, rotacion: newRot })
+                                            guardarPosicionArmario(armario.id, { posX: armario.posX, posY: armario.posY, rotacion: newRot })
                                         }}
                                         onTouchEnd={(e) => {
                                             const newRot = Number(e.target.value)
-                                            guardarPosicionArmario(armario.id, { ...layout, rotacion: newRot })
+                                            guardarPosicionArmario(armario.id, { posX: armario.posX, posY: armario.posY, rotacion: newRot })
                                         }}
                                         style={{width: '100%'}}
                                     />
@@ -1623,8 +1723,8 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                           )}
                         </div>
                         <div className="almacen-armarios-layer">
-                          {estructura.armarios &&
-                            estructura.armarios.map((armario) => {
+                          {visualizadorArmariosFiltrados &&
+                            visualizadorArmariosFiltrados.map((armario) => {
                               const layout = getArmarioLayout(armario)
                               return (
                                 <div
@@ -1653,10 +1753,6 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                                   <span className="armario-box-label" style={{ transform: `rotate(-${layout.rotacion}deg)` }}>{armario.nombre}</span>
                                   {isEditMode && selectedArmarioIdForEdit === armario.id && (
                                     <>
-                                        <div className="resize-handle nw" onPointerDown={(e) => onHandlePointerDown(e, armario, 'resize-nw')} />
-                                        <div className="resize-handle ne" onPointerDown={(e) => onHandlePointerDown(e, armario, 'resize-ne')} />
-                                        <div className="resize-handle sw" onPointerDown={(e) => onHandlePointerDown(e, armario, 'resize-sw')} />
-                                        <div className="resize-handle se" onPointerDown={(e) => onHandlePointerDown(e, armario, 'resize-se')} />
                                         <div className="rotate-connector" />
                                         <div className="rotate-handle" onPointerDown={(e) => onHandlePointerDown(e, armario, 'rotate')} />
                                     </>
@@ -1670,8 +1766,8 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                   </div>
                   <div className="almacen-armarios-list">
                     <h3>Armarios y repisas</h3>
-                    {estructura.armarios && estructura.armarios.length > 0 ? (
-                      estructura.armarios.map(armario => (
+                    {visualizadorArmariosFiltrados && visualizadorArmariosFiltrados.length > 0 ? (
+                      visualizadorArmariosFiltrados.map(armario => (
                         <div key={armario.id} className="armario-item">
                           <h4>{armario.nombre}</h4>
                           {armario.repisas && armario.repisas.length > 0 ? (
