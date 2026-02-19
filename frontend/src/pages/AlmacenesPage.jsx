@@ -79,7 +79,9 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
   const canvasRef = useRef(null)
   const dragArmarioRef = useRef(null)
   const [draggingArmarioId, setDraggingArmarioId] = useState(null)
+  const [hoveredArmarioId, setHoveredArmarioId] = useState(null)
   const [selectedArmarioIdForEdit, setSelectedArmarioIdForEdit] = useState(null)
+  const [lastSelectPointerPos, setLastSelectPointerPos] = useState(null)
   const [canvasStyle, setCanvasStyle] = useState({})
   const [canvasBaseSize, setCanvasBaseSize] = useState({ width: 0, height: 0 })
   const [almacenZoom, setAlmacenZoom] = useState(1)
@@ -437,6 +439,123 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
   const ARMARIO_DISPLAY_ANCHO = 0.12
   const ARMARIO_DISPLAY_ALTO = 0.18
 
+  const getCanvasDimsPx = () => {
+    if (!canvasBaseSize.width || !canvasBaseSize.height) {
+      return { w: 0, h: 0 }
+    }
+    return {
+      w: Math.floor(canvasBaseSize.width * almacenZoom),
+      h: Math.floor(canvasBaseSize.height * almacenZoom),
+    }
+  }
+
+  const getTextWidthPx = (() => {
+    let canvas
+    let ctx
+    return (text, font) => {
+      try {
+        if (!canvas) {
+          canvas = document.createElement('canvas')
+          ctx = canvas.getContext('2d')
+        }
+        if (!ctx) return 0
+        ctx.font = font
+        return ctx.measureText(text || '').width || 0
+      } catch {
+        return 0
+      }
+    }
+  })()
+
+  const doesArmarioInnerLabelFit = (armarioNombre, armarioWidthPx, armarioHeightPx) => {
+    const name = (armarioNombre || '').trim()
+    if (!name) return false
+    const font = '600 12px system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif'
+    const textW = getTextWidthPx(name, font)
+    const horizontalPadding = 4 + 4
+    const verticalPadding = 2 + 2
+    const labelW = textW + horizontalPadding
+    const labelH = 12 + verticalPadding
+    return armarioWidthPx >= labelW && armarioHeightPx >= labelH
+  }
+
+  const getSelectedArmarioFloatingLabel = (armario, layout) => {
+    const { w, h } = getCanvasDimsPx()
+    if (!w || !h) return null
+
+    const labelText = `${armario?.nombre || 'Armario'}`
+
+    const font = '600 12px system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif'
+    const measuredTextW = getTextWidthPx(labelText, font)
+    const TOOLTIP_W = Math.min(320, Math.max(140, measuredTextW + 8 + 8))
+    const TOOLTIP_H = 30
+    const MARGIN = 8
+
+    const armX = layout.posX * w
+    const armY = layout.posY * h
+    const armW = layout.ancho * w
+    const armH = layout.alto * h
+
+    const candidates = [
+      { key: 'top-right', left: armX + armW + MARGIN, top: armY - TOOLTIP_H - MARGIN },
+      { key: 'top-left', left: armX - TOOLTIP_W - MARGIN, top: armY - TOOLTIP_H - MARGIN },
+      { key: 'bottom-right', left: armX + armW + MARGIN, top: armY + armH + MARGIN },
+      { key: 'bottom-left', left: armX - TOOLTIP_W - MARGIN, top: armY + armH + MARGIN },
+    ]
+
+    const clampInCanvas = (pos) => {
+      const left = Math.min(Math.max(0, pos.left), Math.max(0, w - TOOLTIP_W))
+      const top = Math.min(Math.max(0, pos.top), Math.max(0, h - TOOLTIP_H))
+      return { left, top }
+    }
+
+    const scored = candidates
+      .map((pos) => {
+        const clamped = clampInCanvas(pos)
+        const dx = clamped.left - pos.left
+        const dy = clamped.top - pos.top
+        return { ...pos, clamped, score: dx * dx + dy * dy }
+      })
+      .sort((a, b) => a.score - b.score)
+
+    const best = scored[0]
+    if (best) {
+      return {
+        text: labelText,
+        style: {
+          left: `${best.clamped.left}px`,
+          top: `${best.clamped.top}px`,
+          width: `${TOOLTIP_W}px`,
+          maxWidth: `${TOOLTIP_W}px`,
+        },
+      }
+    }
+
+    if (lastSelectPointerPos && typeof lastSelectPointerPos.x === 'number' && typeof lastSelectPointerPos.y === 'number') {
+      const clampedLeft = Math.min(Math.max(0, lastSelectPointerPos.x), Math.max(0, w - TOOLTIP_W))
+      const clampedTop = Math.min(Math.max(0, lastSelectPointerPos.y), Math.max(0, h - TOOLTIP_H))
+      return {
+        text: labelText,
+        style: {
+          left: `${clampedLeft}px`,
+          top: `${clampedTop}px`,
+          width: `${TOOLTIP_W}px`,
+          maxWidth: `${TOOLTIP_W}px`,
+        },
+      }
+    }
+
+    return {
+      text: labelText,
+      style: {
+        left: `${Math.max(0, Math.min(w - TOOLTIP_W, armX))}px`,
+        top: `${Math.max(0, Math.min(h - TOOLTIP_H, armY))}px`,
+        width: `${TOOLTIP_W}px`,
+        maxWidth: `${TOOLTIP_W}px`,
+      },
+    }
+  }
+
   const getArmarioLayout = (armario) => {
     const posX = typeof armario.posX === 'number' ? armario.posX : 0.06
     const posY = typeof armario.posY === 'number' ? armario.posY : 0.12
@@ -588,6 +707,10 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
     dragArmarioRef.current = null
     setDraggingArmarioId(null)
     if (!drag.hasMoved) {
+        const rect = canvasRef.current?.getBoundingClientRect()
+        if (rect) {
+          setLastSelectPointerPos({ x: event.clientX - rect.left + 12, y: event.clientY - rect.top + 12 })
+        }
         setSelectedArmarioIdForEdit(drag.armarioId)
         return
     }
@@ -1659,6 +1782,23 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                       >
                         {`${Math.round(almacenZoom * 100)}%`}
                       </button>
+                      <button
+                        type="button"
+                        className="theme-button"
+                        style={{
+                          marginLeft: '10px',
+                          backgroundColor: isEditMode ? '#2563eb' : '#f3f4f6',
+                          color: isEditMode ? 'white' : '#374151',
+                          border: '1px solid #d1d5db'
+                        }}
+                        onClick={() => {
+                          setIsEditMode(!isEditMode)
+                          if (isEditMode) setSelectedArmarioIdForEdit(null)
+                        }}
+                        title={isEditMode ? 'Volver a modo visualización' : 'Cambiar a modo edición'}
+                      >
+                        {isEditMode ? '👁️ Visualizar' : '✏️ Editar'}
+                      </button>
                     </div>
                     {selectedArmarioIdForEdit && (() => {
                         const armario = estructura?.armarios?.find(a => a.id === selectedArmarioIdForEdit)
@@ -1798,6 +1938,11 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                           {visualizadorArmariosFiltrados &&
                             visualizadorArmariosFiltrados.map((armario) => {
                               const layout = getArmarioLayout(armario)
+                              const { w: canvasW, h: canvasH } = getCanvasDimsPx()
+                              const boxWpx = canvasW ? layout.ancho * canvasW : 0
+                              const boxHpx = canvasH ? layout.alto * canvasH : 0
+                              const isTooSmallForInnerLabel =
+                                !doesArmarioInnerLabelFit(armario?.nombre, boxWpx, boxHpx)
                               return (
                                 <div
                                   key={armario.id}
@@ -1819,10 +1964,14 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                                   onPointerUp={onArmarioPointerUp}
                                   onPointerCancel={onArmarioPointerUp}
                                   onClick={(e) => e.stopPropagation()}
+                                  onMouseEnter={() => setHoveredArmarioId(armario.id)}
+                                  onMouseLeave={() => setHoveredArmarioId(null)}
                                   role="button"
                                   tabIndex={0}
                                 >
-                                  <span className="armario-box-label" style={{ transform: `rotate(-${layout.rotacion}deg)` }}>{armario.nombre}</span>
+                                  {!isTooSmallForInnerLabel && (
+                                    <span className="armario-box-label" style={{ transform: `rotate(-${layout.rotacion}deg)` }}>{armario.nombre}</span>
+                                  )}
                                   {isEditMode && selectedArmarioIdForEdit === armario.id && (
                                     <>
                                         <div className="resize-handle nw" onPointerDown={(e) => onHandlePointerDown(e, armario, 'resize-nw')} />
@@ -1837,6 +1986,25 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                               )
                             })}
                         </div>
+                        {(() => {
+                          const targetArmarioId = isEditMode ? selectedArmarioIdForEdit : hoveredArmarioId
+                          if (!targetArmarioId) return null
+                          const armario = visualizadorArmariosFiltrados?.find((a) => a.id === targetArmarioId)
+                          if (!armario) return null
+                          const layout = getArmarioLayout(armario)
+                          const { w: canvasW, h: canvasH } = getCanvasDimsPx()
+                          const boxWpx = canvasW ? layout.ancho * canvasW : 0
+                          const boxHpx = canvasH ? layout.alto * canvasH : 0
+                          const fits = doesArmarioInnerLabelFit(armario?.nombre, boxWpx, boxHpx)
+                          if (!isEditMode && fits) return null
+                          const tooltip = getSelectedArmarioFloatingLabel(armario, layout)
+                          if (!tooltip) return null
+                          return (
+                            <div className="armario-floating-label" style={tooltip.style}>
+                              {tooltip.text}
+                            </div>
+                          )
+                        })()}
                       </div>
                     </div>
                   </div>
