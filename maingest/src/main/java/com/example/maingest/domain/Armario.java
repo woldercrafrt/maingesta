@@ -36,6 +36,12 @@ public class Armario {
     @Column(name = "alto")
     private Double alto;
 
+    @Column(name = "display_ancho")
+    private Double displayAncho;
+
+    @Column(name = "display_alto")
+    private Double displayAlto;
+
     @Column(name = "rotacion")
     private Double rotacion;
 
@@ -105,6 +111,22 @@ public class Armario {
 
     public void setRotacion(Double rotacion) {
         this.rotacion = rotacion;
+    }
+
+    public Double getDisplayAncho() {
+        return displayAncho;
+    }
+
+    public void setDisplayAncho(Double displayAncho) {
+        this.displayAncho = displayAncho;
+    }
+
+    public Double getDisplayAlto() {
+        return displayAlto;
+    }
+
+    public void setDisplayAlto(Double displayAlto) {
+        this.displayAlto = displayAlto;
     }
 
     public Almacen getAlmacen() {

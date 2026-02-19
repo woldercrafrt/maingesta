@@ -441,14 +441,18 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
     const posX = typeof armario.posX === 'number' ? armario.posX : 0.06
     const posY = typeof armario.posY === 'number' ? armario.posY : 0.12
     const rotacion = typeof armario.rotacion === 'number' ? armario.rotacion : 0.0
-    const safeAncho = Math.max(0.01, clamp01(ARMARIO_DISPLAY_ANCHO))
-    const safeAlto = Math.max(0.01, clamp01(ARMARIO_DISPLAY_ALTO))
+    const rawDisplayAncho = typeof armario.displayAncho === 'number' ? armario.displayAncho : ARMARIO_DISPLAY_ANCHO
+    const rawDisplayAlto = typeof armario.displayAlto === 'number' ? armario.displayAlto : ARMARIO_DISPLAY_ALTO
+    const safeAncho = Math.max(0.01, clamp01(rawDisplayAncho))
+    const safeAlto = Math.max(0.01, clamp01(rawDisplayAlto))
     return {
       posX: clamp01(Math.min(posX, 1 - safeAncho)),
       posY: clamp01(Math.min(posY, 1 - safeAlto)),
       ancho: safeAncho,
       alto: safeAlto,
-      rotacion: rotacion
+      rotacion: rotacion,
+      displayAncho: safeAncho,
+      displayAlto: safeAlto,
     }
   }
 
@@ -531,6 +535,48 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
         const angle = Math.atan2(event.clientY - cy, event.clientX - cx) * (180 / Math.PI)
         const deg = angle + 90
         actualizarArmarioLocal(drag.armarioId, { rotacion: deg })
+    } else if (drag.actionType && drag.actionType.startsWith('resize-')) {
+        const MIN_SIZE = 0.01
+        const start = drag.startLayout
+        let nextPosX = start.posX
+        let nextPosY = start.posY
+        let nextAncho = start.ancho
+        let nextAlto = start.alto
+
+        if (drag.actionType === 'resize-se') {
+            nextAncho = clamp01(start.ancho + deltaX)
+            nextAlto = clamp01(start.alto + deltaY)
+        } else if (drag.actionType === 'resize-sw') {
+            nextPosX = clamp01(start.posX + deltaX)
+            nextAncho = clamp01(start.ancho - deltaX)
+            nextAlto = clamp01(start.alto + deltaY)
+        } else if (drag.actionType === 'resize-ne') {
+            nextPosY = clamp01(start.posY + deltaY)
+            nextAncho = clamp01(start.ancho + deltaX)
+            nextAlto = clamp01(start.alto - deltaY)
+        } else if (drag.actionType === 'resize-nw') {
+            nextPosX = clamp01(start.posX + deltaX)
+            nextPosY = clamp01(start.posY + deltaY)
+            nextAncho = clamp01(start.ancho - deltaX)
+            nextAlto = clamp01(start.alto - deltaY)
+        }
+
+        nextAncho = Math.max(MIN_SIZE, nextAncho)
+        nextAlto = Math.max(MIN_SIZE, nextAlto)
+
+        if (nextPosX + nextAncho > 1) {
+            nextAncho = 1 - nextPosX
+        }
+        if (nextPosY + nextAlto > 1) {
+            nextAlto = 1 - nextPosY
+        }
+
+        actualizarArmarioLocal(drag.armarioId, {
+            posX: nextPosX,
+            posY: nextPosY,
+            displayAncho: nextAncho,
+            displayAlto: nextAlto,
+        })
     }
   }
 
@@ -552,6 +598,8 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
     guardarPosicionArmario(drag.armarioId, {
       posX: armario.posX,
       posY: armario.posY,
+      displayAncho: armario.displayAncho,
+      displayAlto: armario.displayAlto,
       rotacion: armario.rotacion,
     })
   }
@@ -1652,45 +1700,69 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                                     />
                                 </div>
                                 <div style={{marginBottom: '10px'}}>
-                                    <label style={{display:'block', fontSize:'0.8rem', color: '#555', marginBottom: '4px'}}>Ancho ({(layout.ancho * 100).toFixed(1)}%)</label>
+                                    <label style={{display:'block', fontSize:'0.8rem', color: '#555', marginBottom: '4px'}}>Ancho ({(layout.displayAncho * 100).toFixed(1)}%)</label>
                                     <input
                                         type="range"
                                         min="1"
                                         max="50"
                                         step="0.5"
-                                        value={layout.ancho * 100}
+                                        value={layout.displayAncho * 100}
                                         onChange={(e) => {
-                                            actualizarArmarioLocal(armario.id, { ancho: Number(e.target.value) / 100 })
+                                            actualizarArmarioLocal(armario.id, { displayAncho: Number(e.target.value) / 100 })
                                         }}
                                         onMouseUp={(e) => {
                                             const newAncho = Number(e.target.value) / 100
-                                            guardarPosicionArmario(armario.id, { ...layout, ancho: newAncho })
+                                            guardarPosicionArmario(armario.id, {
+                                                posX: armario.posX,
+                                                posY: armario.posY,
+                                                displayAncho: newAncho,
+                                                displayAlto: armario.displayAlto,
+                                                rotacion: armario.rotacion,
+                                            })
                                         }}
                                          onTouchEnd={(e) => {
                                              const newAncho = Number(e.target.value) / 100
-                                             guardarPosicionArmario(armario.id, { ...layout, ancho: newAncho })
+                                             guardarPosicionArmario(armario.id, {
+                                                 posX: armario.posX,
+                                                 posY: armario.posY,
+                                                 displayAncho: newAncho,
+                                                 displayAlto: armario.displayAlto,
+                                                 rotacion: armario.rotacion,
+                                             })
                                         }}
                                         style={{width: '100%'}}
                                     />
                                 </div>
                                 <div style={{marginBottom: '10px'}}>
-                                    <label style={{display:'block', fontSize:'0.8rem', color: '#555', marginBottom: '4px'}}>Alto ({(layout.alto * 100).toFixed(1)}%)</label>
+                                    <label style={{display:'block', fontSize:'0.8rem', color: '#555', marginBottom: '4px'}}>Alto ({(layout.displayAlto * 100).toFixed(1)}%)</label>
                                     <input
                                         type="range"
                                         min="1"
                                         max="50"
                                         step="0.5"
-                                        value={layout.alto * 100}
+                                        value={layout.displayAlto * 100}
                                         onChange={(e) => {
-                                            actualizarArmarioLocal(armario.id, { alto: Number(e.target.value) / 100 })
+                                            actualizarArmarioLocal(armario.id, { displayAlto: Number(e.target.value) / 100 })
                                         }}
                                         onMouseUp={(e) => {
                                             const newAlto = Number(e.target.value) / 100
-                                            guardarPosicionArmario(armario.id, { ...layout, alto: newAlto })
+                                            guardarPosicionArmario(armario.id, {
+                                                posX: armario.posX,
+                                                posY: armario.posY,
+                                                displayAncho: armario.displayAncho,
+                                                displayAlto: newAlto,
+                                                rotacion: armario.rotacion,
+                                            })
                                         }}
                                          onTouchEnd={(e) => {
                                              const newAlto = Number(e.target.value) / 100
-                                             guardarPosicionArmario(armario.id, { ...layout, alto: newAlto })
+                                             guardarPosicionArmario(armario.id, {
+                                                 posX: armario.posX,
+                                                 posY: armario.posY,
+                                                 displayAncho: armario.displayAncho,
+                                                 displayAlto: newAlto,
+                                                 rotacion: armario.rotacion,
+                                             })
                                         }}
                                         style={{width: '100%'}}
                                     />
@@ -1753,6 +1825,10 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                                   <span className="armario-box-label" style={{ transform: `rotate(-${layout.rotacion}deg)` }}>{armario.nombre}</span>
                                   {isEditMode && selectedArmarioIdForEdit === armario.id && (
                                     <>
+                                        <div className="resize-handle nw" onPointerDown={(e) => onHandlePointerDown(e, armario, 'resize-nw')} />
+                                        <div className="resize-handle ne" onPointerDown={(e) => onHandlePointerDown(e, armario, 'resize-ne')} />
+                                        <div className="resize-handle sw" onPointerDown={(e) => onHandlePointerDown(e, armario, 'resize-sw')} />
+                                        <div className="resize-handle se" onPointerDown={(e) => onHandlePointerDown(e, armario, 'resize-se')} />
                                         <div className="rotate-connector" />
                                         <div className="rotate-handle" onPointerDown={(e) => onHandlePointerDown(e, armario, 'rotate')} />
                                     </>

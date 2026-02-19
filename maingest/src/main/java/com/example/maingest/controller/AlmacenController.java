@@ -114,6 +114,8 @@ public class AlmacenController {
             Double posY,
             Double ancho,
             Double alto,
+            Double displayAncho,
+            Double displayAlto,
             Double rotacion,
             List<RepisaDto> repisas
     ) {
@@ -143,8 +145,8 @@ public class AlmacenController {
     public record ArmarioPosicionDto(
             Double posX,
             Double posY,
-            Double ancho,
-            Double alto,
+            Double displayAncho,
+            Double displayAlto,
             Double rotacion
     ) {
     }
@@ -325,6 +327,8 @@ public class AlmacenController {
                             armario.getPosY(),
                             armario.getAncho(),
                             armario.getAlto(),
+                            armario.getDisplayAncho(),
+                            armario.getDisplayAlto(),
                             armario.getRotacion(),
                             repisasDto
                     );
@@ -467,6 +471,8 @@ public class AlmacenController {
                 armario.getPosY(),
                 armario.getAncho(),
                 armario.getAlto(),
+                armario.getDisplayAncho(),
+                armario.getDisplayAlto(),
                 armario.getRotacion(),
                 repisasDto
         );
@@ -499,6 +505,8 @@ public class AlmacenController {
         armario.setPosY(clampNormalizedOrNull(dto.posY(), 0.12));
         armario.setAncho(clampSizeOrNull(dto.ancho(), 0.12));
         armario.setAlto(clampSizeOrNull(dto.alto(), 0.6));
+        armario.setDisplayAncho(clampSizeOrNull(null, ARMARIO_DISPLAY_ANCHO));
+        armario.setDisplayAlto(clampSizeOrNull(null, ARMARIO_DISPLAY_ALTO));
         armario.setRotacion(dto.rotacion() != null ? dto.rotacion() : 0.0);
         armario.setAlmacen(almacen);
         Armario guardado = armarioRepository.save(armario);
@@ -510,6 +518,8 @@ public class AlmacenController {
                 guardado.getPosY(),
                 guardado.getAncho(),
                 guardado.getAlto(),
+                guardado.getDisplayAncho(),
+                guardado.getDisplayAlto(),
                 guardado.getRotacion(),
                 List.of()
         );
@@ -535,8 +545,8 @@ public class AlmacenController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        Double ancho = clampSizeOrNull(dto.ancho(), armario.getAncho() != null ? armario.getAncho() : 0.12);
-        Double alto = clampSizeOrNull(dto.alto(), armario.getAlto() != null ? armario.getAlto() : 0.6);
+        Double displayAncho = clampSizeOrNull(dto.displayAncho(), armario.getDisplayAncho() != null ? armario.getDisplayAncho() : ARMARIO_DISPLAY_ANCHO);
+        Double displayAlto = clampSizeOrNull(dto.displayAlto(), armario.getDisplayAlto() != null ? armario.getDisplayAlto() : ARMARIO_DISPLAY_ALTO);
         Double posX = clampNormalizedOrNull(dto.posX(), armario.getPosX() != null ? armario.getPosX() : 0.06);
         Double posY = clampNormalizedOrNull(dto.posY(), armario.getPosY() != null ? armario.getPosY() : 0.12);
         Double rotacion = dto.rotacion() != null ? dto.rotacion() : (armario.getRotacion() != null ? armario.getRotacion() : 0.0);
@@ -544,8 +554,8 @@ public class AlmacenController {
         posX = clampNormalizedOrNull(posX, 0.0);
         posY = clampNormalizedOrNull(posY, 0.0);
 
-        double clampAncho = ARMARIO_DISPLAY_ANCHO;
-        double clampAlto = ARMARIO_DISPLAY_ALTO;
+        double clampAncho = displayAncho != null ? displayAncho : ARMARIO_DISPLAY_ANCHO;
+        double clampAlto = displayAlto != null ? displayAlto : ARMARIO_DISPLAY_ALTO;
         if (posX != null && posX + clampAncho > 1.0) {
             posX = 1.0 - clampAncho;
         }
@@ -555,8 +565,8 @@ public class AlmacenController {
 
         armario.setPosX(posX);
         armario.setPosY(posY);
-        armario.setAncho(ancho);
-        armario.setAlto(alto);
+        armario.setDisplayAncho(displayAncho);
+        armario.setDisplayAlto(displayAlto);
         armario.setRotacion(rotacion);
         Armario guardado = armarioRepository.save(armario);
 
@@ -580,6 +590,8 @@ public class AlmacenController {
                 guardado.getPosY(),
                 guardado.getAncho(),
                 guardado.getAlto(),
+                guardado.getDisplayAncho(),
+                guardado.getDisplayAlto(),
                 guardado.getRotacion(),
                 repisasDto
         );
