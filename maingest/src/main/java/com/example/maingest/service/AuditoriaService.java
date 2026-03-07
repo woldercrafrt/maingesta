@@ -3,12 +3,12 @@ package com.example.maingest.service;
 import com.example.maingest.domain.AuditoriaEvento;
 import com.example.maingest.domain.Usuario;
 import com.example.maingest.repository.AuditoriaEventoRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.List;
-import java.util.Locale;
-import java.util.stream.Collectors;
+import java.util.Set;
 
 @Service
 public class AuditoriaService {
@@ -35,50 +35,20 @@ public class AuditoriaService {
         auditoriaEventoRepository.save(evento);
     }
 
-    public List<AuditoriaEvento> buscar(String usuarioCorreo, String objetoTipo, String accion, String texto) {
-        List<AuditoriaEvento> base = auditoriaEventoRepository.findTop200ByOrderByCreadoEnDesc();
-        return base.stream()
-                .filter(e -> {
-                    if (usuarioCorreo == null || usuarioCorreo.isBlank()) {
-                        return true;
-                    }
-                    String correo = e.getUsuarioCorreo();
-                    if (correo == null) {
-                        return false;
-                    }
-                    return correo.toLowerCase(Locale.ROOT).contains(usuarioCorreo.toLowerCase(Locale.ROOT));
-                })
-                .filter(e -> {
-                    if (objetoTipo == null || objetoTipo.isBlank()) {
-                        return true;
-                    }
-                    String tipo = e.getObjetoTipo();
-                    if (tipo == null) {
-                        return false;
-                    }
-                    return tipo.toLowerCase(Locale.ROOT).contains(objetoTipo.toLowerCase(Locale.ROOT));
-                })
-                .filter(e -> {
-                    if (accion == null || accion.isBlank()) {
-                        return true;
-                    }
-                    String acc = e.getAccion();
-                    if (acc == null) {
-                        return false;
-                    }
-                    return acc.toLowerCase(Locale.ROOT).contains(accion.toLowerCase(Locale.ROOT));
-                })
-                .filter(e -> {
-                    if (texto == null || texto.isBlank()) {
-                        return true;
-                    }
-                    String lower = texto.toLowerCase(Locale.ROOT);
-                    String desc = e.getDescripcion() != null ? e.getDescripcion() : "";
-                    String detalles = e.getDetallesJson() != null ? e.getDetallesJson() : "";
-                    return desc.toLowerCase(Locale.ROOT).contains(lower)
-                            || detalles.toLowerCase(Locale.ROOT).contains(lower);
-                })
-                .collect(Collectors.toList());
+    public Page<AuditoriaEvento> buscar(String usuarioCorreo, String objetoTipo, String accion, String texto, Pageable pageable) {
+        String correoParam = (usuarioCorreo != null && !usuarioCorreo.isBlank()) ? usuarioCorreo.trim() : null;
+        String tipoParam = (objetoTipo != null && !objetoTipo.isBlank()) ? objetoTipo.trim() : null;
+        String accionParam = (accion != null && !accion.isBlank()) ? accion.trim() : null;
+        String textoParam = (texto != null && !texto.isBlank()) ? texto.trim() : null;
+        return auditoriaEventoRepository.buscarConFiltros(correoParam, tipoParam, accionParam, textoParam, pageable);
+    }
+
+    public Page<AuditoriaEvento> buscarPorUsuarios(Set<Long> usuarioIds, String usuarioCorreo, String objetoTipo, String accion, String texto, Pageable pageable) {
+        String correoParam = (usuarioCorreo != null && !usuarioCorreo.isBlank()) ? usuarioCorreo.trim() : null;
+        String tipoParam = (objetoTipo != null && !objetoTipo.isBlank()) ? objetoTipo.trim() : null;
+        String accionParam = (accion != null && !accion.isBlank()) ? accion.trim() : null;
+        String textoParam = (texto != null && !texto.isBlank()) ? texto.trim() : null;
+        return auditoriaEventoRepository.buscarConFiltrosYUsuarios(usuarioIds, correoParam, tipoParam, accionParam, textoParam, pageable);
     }
 }
 

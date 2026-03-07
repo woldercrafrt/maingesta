@@ -368,19 +368,36 @@ public class UsuarioController {
     }
 
     private UsuarioDto toUsuarioDto(Usuario usuario) {
-        List<String> roles = usuarioRolRepository.findByUsuario(usuario).stream()
-                .map(UsuarioRol::getRol)
-                .filter(Objects::nonNull)
-                .map(Rol::getNombre)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
-        List<EmpresaUsuario> relaciones = empresaUsuarioRepository.findByUsuario(usuario);
+        if (usuario == null) {
+            return null;
+        }
+        
+        List<String> roles = List.of();
+        try {
+            roles = usuarioRolRepository.findByUsuario(usuario).stream()
+                    .map(UsuarioRol::getRol)
+                    .filter(Objects::nonNull)
+                    .map(Rol::getNombre)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .toList();
+        } catch (Exception e) {
+            // Log and continue with empty roles
+        }
+        
+        List<EmpresaUsuario> relaciones = List.of();
+        try {
+            relaciones = empresaUsuarioRepository.findByUsuario(usuario);
+        } catch (Exception e) {
+            // Log and continue with empty relations
+        }
+        
         EmpresaUsuario relacionEmpresa = relaciones.isEmpty() ? null : relaciones.get(0);
         Empresa empresaAsignada = relacionEmpresa != null ? relacionEmpresa.getEmpresa() : null;
         Rol rolEmpresa = relacionEmpresa != null ? relacionEmpresa.getRol() : null;
         String empresaNombre = empresaAsignada != null ? empresaAsignada.getNombre() : null;
         String empresaRolNombre = rolEmpresa != null ? rolEmpresa.getNombre() : null;
+        
         List<String> empresas = relaciones.isEmpty()
                 ? List.of()
                 : relaciones.stream()
@@ -390,6 +407,7 @@ public class UsuarioController {
                 .filter(Objects::nonNull)
                 .limit(1)
                 .toList();
+                
         return new UsuarioDto(
                 usuario.getId(),
                 usuario.getCorreo(),

@@ -7,6 +7,9 @@ import com.example.maingest.domain.Usuario;
 import com.example.maingest.repository.EmpresaUsuarioRepository;
 import com.example.maingest.service.AccessControlService;
 import com.example.maingest.service.AuditoriaService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -53,22 +56,39 @@ public class AuditoriaController {
     ) {
     }
 
+    public record AuditoriaPaginadaDto(
+            List<AuditoriaEventoDto> content,
+            int page,
+            int size,
+            long totalElements,
+            int totalPages
+    ) {
+    }
+
     @GetMapping
-    public ResponseEntity<List<AuditoriaEventoDto>> listar(
+    public ResponseEntity<AuditoriaPaginadaDto> listar(
             @RequestParam(name = "usuarioCorreo", required = false) String usuarioCorreo,
             @RequestParam(name = "objetoTipo", required = false) String objetoTipo,
             @RequestParam(name = "accion", required = false) String accion,
-            @RequestParam(name = "texto", required = false) String texto
+            @RequestParam(name = "texto", required = false) String texto,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "50") int size
     ) {
         Usuario actor = currentUsuario();
-        List<AuditoriaEvento> eventos = auditoriaService.buscar(usuarioCorreo, objetoTipo, accion, texto);
         if (actor == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-        if (!accessControlService.isSuperAdmin(actor)) {
+
+        int safeSize = Math.min(Math.max(size, 1), 200);
+        Pageable pageable = PageRequest.of(Math.max(page, 0), safeSize);
+
+        Page<AuditoriaEvento> eventos;
+        if (accessControlService.isSuperAdmin(actor)) {
+            eventos = auditoriaService.buscar(usuarioCorreo, objetoTipo, accion, texto, pageable);
+        } else {
             List<EmpresaUsuario> relacionesActor = empresaUsuarioRepository.findByUsuario(actor);
             if (relacionesActor.isEmpty()) {
-                return ResponseEntity.ok(List.of());
+                return ResponseEntity.ok(new AuditoriaPaginadaDto(List.of(), 0, safeSize, 0, 0));
             }
             List<Empresa> empresasActor = relacionesActor.stream()
                     .map(EmpresaUsuario::getEmpresa)
@@ -76,7 +96,7 @@ public class AuditoriaController {
                     .distinct()
                     .toList();
             if (empresasActor.isEmpty()) {
-                return ResponseEntity.ok(List.of());
+                return ResponseEntity.ok(new AuditoriaPaginadaDto(List.of(), 0, safeSize, 0, 0));
             }
             Set<Long> usuarioIdsPermitidos = empresasActor.stream()
                     .flatMap(empresa -> empresaUsuarioRepository.findByEmpresa(empresa).stream())
@@ -85,13 +105,18 @@ public class AuditoriaController {
                     .map(Usuario::getId)
                     .filter(Objects::nonNull)
                     .collect(Collectors.toSet());
-            eventos = eventos.stream()
-                    .filter(e -> e.getUsuarioId() != null && usuarioIdsPermitidos.contains(e.getUsuarioId()))
-                    .toList();
+            if (usuarioIdsPermitidos.isEmpty()) {
+                return ResponseEntity.ok(new AuditoriaPaginadaDto(List.of(), 0, safeSize, 0, 0));
+            }
+            eventos = auditoriaService.buscarPorUsuarios(usuarioIdsPermitidos, usuarioCorreo, objetoTipo, accion, texto, pageable);
         }
-        List<AuditoriaEventoDto> respuesta = eventos.stream()
+
+        List<AuditoriaEventoDto> content = eventos.getContent().stream()
                 .map(this::toDto)
                 .toList();
+        AuditoriaPaginadaDto respuesta = new AuditoriaPaginadaDto(
+                content, eventos.getNumber(), eventos.getSize(), eventos.getTotalElements(), eventos.getTotalPages()
+        );
         return ResponseEntity.ok(respuesta);
     }
 

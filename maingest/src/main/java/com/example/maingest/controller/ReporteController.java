@@ -65,7 +65,12 @@ public class ReporteController {
             Long itemId,
             String itemNombre,
             String itemEstado,
-            Integer itemTamanio
+            Integer itemTamanio,
+            Long productoId,
+            String productoSku,
+            Integer cantidad,
+            String estadoStock,
+            String lote
     ) {
     }
 
@@ -165,9 +170,14 @@ public class ReporteController {
                             repisa.getNivel(),
                             repisa.getCapacidad(),
                             item.getId(),
-                            item.getNombre(),
-                            item.getEstado(),
-                            item.getTamanio()
+                            item.getProducto() != null ? item.getProducto().getNombre() : item.getNombre(),
+                            item.getEstadoStock() != null ? item.getEstadoStock().name() : item.getEstado(),
+                            item.getTamanio(),
+                            item.getProducto() != null ? item.getProducto().getId() : null,
+                            item.getProducto() != null ? item.getProducto().getSku() : null,
+                            item.getCantidad(),
+                            item.getEstadoStock() != null ? item.getEstadoStock().name() : null,
+                            item.getLote()
                     );
                 })
                 .toList();

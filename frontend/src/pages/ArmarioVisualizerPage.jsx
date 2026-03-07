@@ -35,28 +35,28 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
       return
     }
 
-    setIsLoading(true)
-    fetch(`${backendBaseUrl}/api/almacenes/armarios/${id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((response) => {
+    const loadArmario = async () => {
+      setIsLoading(true)
+      try {
+        const response = await fetch(`${backendBaseUrl}/api/almacenes/armarios/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
         if (!response.ok) {
           throw new Error('Error al cargar el armario')
         }
-        return response.json()
-      })
-      .then((data) => {
+        const data = await response.json()
         setArmario(data)
         setError(null)
-      })
-      .catch((err) => {
+      } catch (err) {
         setError(err.message)
-      })
-      .finally(() => {
+      } finally {
         setIsLoading(false)
-      })
+      }
+    }
+
+    loadArmario()
   }, [id, navigate])
 
   useEffect(() => {
@@ -200,10 +200,13 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
     current.items.push({
       id: row?.itemId,
       nombre: row?.itemNombre,
-      estado: row?.itemEstado,
+      estado: row?.estadoStock || row?.itemEstado,
       tamanio: row?.itemTamanio,
       repisaId: row?.repisaId,
       repisaNivel: row?.repisaNivel,
+      cantidad: row?.cantidad || 1,
+      lote: row?.lote,
+      productoSku: row?.productoSku
     })
     acc[repisaId] = current
     return acc
@@ -232,10 +235,13 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
     .map((row) => ({
       id: row?.itemId,
       nombre: row?.itemNombre,
-      estado: row?.itemEstado,
+      estado: row?.estadoStock || row?.itemEstado,
       tamanio: row?.itemTamanio,
       repisaId: row?.repisaId,
       repisaNivel: row?.repisaNivel,
+      cantidad: row?.cantidad || 1,
+      lote: row?.lote,
+      productoSku: row?.productoSku
     }))
 
   const repisaFilterIdNumber = repisaFilterId ? Number(repisaFilterId) : null
@@ -415,8 +421,10 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
                         className={`repisa-result-item ${selectedRepisaId && Number(it?.repisaId) === Number(selectedRepisaId) ? 'active' : ''}`}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
-                          <div style={{ color: 'var(--text)', fontWeight: 600, fontSize: '13px' }}>{it.nombre}</div>
-                          <div className="repisa-result-badge">{`Nivel ${it.repisaNivel ?? '-'}`}</div>
+                          <div style={{ color: 'var(--text)', fontWeight: 600, fontSize: '13px' }}>
+                            {it.nombre} {it.cantidad > 1 && <span style={{ color: 'var(--muted)', fontWeight: 'normal' }}>(x{it.cantidad})</span>}
+                          </div>
+                          <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{`Nivel ${it.repisaNivel}`}</div>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginTop: '2px' }}>
                           <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{`Estado: ${it.estado ?? '-'}`}</div>
@@ -443,19 +451,23 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
               <div style={{ overflow: 'auto', maxHeight: '52vh', border: '1px solid var(--border)', borderRadius: '10px' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr style={{ background: 'rgba(148, 163, 184, 0.08)' }}>
-                      <th style={{ textAlign: 'left', padding: '10px', fontSize: '12px', color: 'var(--muted)' }}>Nombre</th>
-                      <th style={{ textAlign: 'left', padding: '10px', fontSize: '12px', color: 'var(--muted)' }}>Estado</th>
-                      <th style={{ textAlign: 'right', padding: '10px', fontSize: '12px', color: 'var(--muted)' }}>Tamaño</th>
+                    <tr>
+                      <th style={{ textAlign: 'left', padding: '10px', color: 'var(--muted)', fontWeight: 500, fontSize: '13px' }}>Producto</th>
+                      <th style={{ textAlign: 'left', padding: '10px', color: 'var(--muted)', fontWeight: 500, fontSize: '13px' }}>Estado</th>
+                      <th style={{ textAlign: 'left', padding: '10px', color: 'var(--muted)', fontWeight: 500, fontSize: '13px' }}>Cantidad</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(selectedStats?.items || []).length > 0 ? (
                       (selectedStats?.items || []).map((it) => (
                         <tr key={it.id} style={{ borderTop: '1px solid var(--border)' }}>
-                          <td style={{ padding: '10px', color: 'var(--text)', fontSize: '13px' }}>{it.nombre}</td>
+                          <td style={{ padding: '10px', color: 'var(--text)', fontSize: '13px' }}>
+                            <div><strong>{it.nombre}</strong></div>
+                            {it.productoSku && <div style={{ fontSize: '0.85em', color: 'var(--text-secondary)' }}>SKU: {it.productoSku}</div>}
+                            {it.lote && <div style={{ fontSize: '0.85em', color: 'var(--text-secondary)' }}>Lote: {it.lote}</div>}
+                          </td>
                           <td style={{ padding: '10px', color: 'var(--muted)', fontSize: '13px' }}>{it.estado ?? '-'}</td>
-                          <td style={{ padding: '10px', color: 'var(--muted)', fontSize: '13px', textAlign: 'right' }}>{it.tamanio ?? '-'}</td>
+                          <td style={{ padding: '10px', color: 'var(--text)', fontSize: '13px', fontWeight: 600 }}>{it.cantidad}</td>
                         </tr>
                       ))
                     ) : (

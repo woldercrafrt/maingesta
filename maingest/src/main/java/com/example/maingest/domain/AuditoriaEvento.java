@@ -5,13 +5,18 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
 
 @Entity
-@Table(name = "AUDITORIA_EVENTO")
+@Table(name = "AUDITORIA_EVENTO", indexes = {
+        @Index(name = "idx_auditoria_creado", columnList = "creado_en"),
+        @Index(name = "idx_auditoria_usuario", columnList = "usuario_id"),
+        @Index(name = "idx_auditoria_objeto_tipo", columnList = "objeto_tipo")
+})
 public class AuditoriaEvento {
 
     @Id

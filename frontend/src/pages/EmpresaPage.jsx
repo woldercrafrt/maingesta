@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import MobileNavMenu from '../components/MobileNavMenu'
 import ThemeSelector from '../components/ThemeSelector'
 import UserMenu from '../components/UserMenu'
 import { backendBaseUrl } from '../utils/config'
@@ -10,6 +11,8 @@ const EmpresaPage = ({ theme, onThemeChange }) => {
   const [empresas, setEmpresas] = useState([])
   const [selectedEmpresaId, setSelectedEmpresaId] = useState(null)
   const [activeSection, setActiveSection] = useState('resumen')
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const mobileNavRef = useRef(null)
   const [empresaUsuarios, setEmpresaUsuarios] = useState([])
   const [empresaItems, setEmpresaItems] = useState([])
   const [priceDraftByItemId, setPriceDraftByItemId] = useState({})
@@ -27,70 +30,76 @@ const EmpresaPage = ({ theme, onThemeChange }) => {
       setIsLoading(false)
       return
     }
-    setIsLoading(true)
-    setError(null)
 
-    fetch(`${backendBaseUrl}/api/empresas`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => {
+    const loadEmpresas = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const res = await fetch(`${backendBaseUrl}/api/empresas`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
         if (res.status === 401) {
           logout()
           throw new Error('Sesión expirada')
         }
-        return res.ok ? res.json() : Promise.reject(new Error('Error al cargar empresas'))
-      })
-      .then((data) => {
+        if (!res.ok) throw new Error('Error al cargar empresas')
+        const data = await res.json()
         setEmpresas(Array.isArray(data) ? data : [])
         const first = Array.isArray(data) && data.length ? data[0] : null
         setSelectedEmpresaId(first?.id ?? null)
-      })
-      .catch((err) => {
+      } catch (err) {
         setError(err.message)
         setEmpresas([])
         setSelectedEmpresaId(null)
-      })
-      .finally(() => setIsLoading(false))
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadEmpresas()
   }, [token, logout])
 
   useEffect(() => {
     if (!token || !selectedEmpresaId) {
-      setEmpresaUsuarios([])
       return
     }
 
-    fetch(`${backendBaseUrl}/api/empresas/${selectedEmpresaId}/usuarios`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => {
+    const loadUsuarios = async () => {
+      try {
+        const res = await fetch(`${backendBaseUrl}/api/empresas/${selectedEmpresaId}/usuarios`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
         if (res.status === 401) {
           logout()
           throw new Error('Sesión expirada')
         }
-        return res.ok ? res.json() : Promise.reject(new Error('Error al cargar usuarios de la empresa'))
-      })
-      .then((data) => setEmpresaUsuarios(Array.isArray(data) ? data : []))
-      .catch(() => setEmpresaUsuarios([]))
+        if (!res.ok) throw new Error('Error al cargar usuarios de la empresa')
+        const data = await res.json()
+        setEmpresaUsuarios(Array.isArray(data) ? data : [])
+      } catch {
+        setEmpresaUsuarios([])
+      }
+    }
+
+    loadUsuarios()
   }, [selectedEmpresaId, token, logout])
 
   useEffect(() => {
     if (!token || !selectedEmpresaId) {
-      setEmpresaItems([])
-      setPriceDraftByItemId({})
       return
     }
 
-    fetch(`${backendBaseUrl}/api/items?empresaId=${selectedEmpresaId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => {
+    const loadItems = async () => {
+      try {
+        const res = await fetch(`${backendBaseUrl}/api/items?empresaId=${selectedEmpresaId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
         if (res.status === 401) {
           logout()
           throw new Error('Sesión expirada')
         }
-        return res.ok ? res.json() : Promise.reject(new Error('Error al cargar items'))
-      })
-      .then((data) => {
+        if (!res.ok) throw new Error('Error al cargar items')
+        const data = await res.json()
         const items = Array.isArray(data) ? data : []
         setEmpresaItems(items)
         setPriceDraftByItemId((prev) => {
@@ -102,11 +111,13 @@ const EmpresaPage = ({ theme, onThemeChange }) => {
           }
           return next
         })
-      })
-      .catch(() => {
+      } catch {
         setEmpresaItems([])
         setPriceDraftByItemId({})
-      })
+      }
+    }
+
+    loadItems()
   }, [selectedEmpresaId, token, logout])
 
   const onSavePrecio = (itemId) => {
@@ -150,6 +161,26 @@ const EmpresaPage = ({ theme, onThemeChange }) => {
     { id: 'precios', label: 'Precios' },
     { id: 'despachos', label: 'Despachos' },
   ]
+
+  useEffect(() => {
+    if (!mobileNavOpen) {
+      return undefined
+    }
+
+    const handlePointerDown = (event) => {
+      if (mobileNavRef.current && !mobileNavRef.current.contains(event.target)) {
+        setMobileNavOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('touchstart', handlePointerDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('touchstart', handlePointerDown)
+    }
+  }, [mobileNavOpen])
 
   const renderSection = () => {
     if (isLoading) {
@@ -319,6 +350,7 @@ const EmpresaPage = ({ theme, onThemeChange }) => {
           <span className="admin-topbar-title">Maingest</span>
         </div>
         <div className="admin-header-right">
+          <MobileNavMenu />
           <Link to="/home" className="theme-button">
             Home
           </Link>
@@ -328,12 +360,12 @@ const EmpresaPage = ({ theme, onThemeChange }) => {
       </header>
 
       <div className="admin-body">
-        <aside className="admin-sidebar">
+        <aside className="admin-sidebar admin-sidebar-mobile-hidden">
           <div className="admin-sidebar-header">
             <div className="admin-sidebar-logo" />
             <div className="admin-sidebar-title">Empresa</div>
           </div>
-          <div className="admin-sidebar-nav">
+          <div className="admin-sidebar-nav admin-sidebar-nav-desktop">
             {sections.map((section) => (
               <button
                 key={section.id}
@@ -348,6 +380,35 @@ const EmpresaPage = ({ theme, onThemeChange }) => {
         </aside>
 
         <div className="admin-main">
+          <div className="admin-section-mobile-nav admin-sidebar-nav-mobile" ref={mobileNavRef}>
+            <button
+              type="button"
+              className={`admin-nav-dropdown-trigger ${mobileNavOpen ? 'open' : ''}`}
+              onClick={() => setMobileNavOpen((current) => !current)}
+              aria-expanded={mobileNavOpen}
+            >
+              <span>
+                {sections.find((section) => section.id === activeSection)?.label || 'Seleccionar sección'}
+              </span>
+            </button>
+            {mobileNavOpen && (
+              <div className="admin-nav-dropdown-menu">
+                {sections.map((section) => (
+                  <button
+                    key={section.id}
+                    type="button"
+                    className={`admin-nav-dropdown-item ${activeSection === section.id ? 'active' : ''}`}
+                    onClick={() => {
+                      setActiveSection(section.id)
+                      setMobileNavOpen(false)
+                    }}
+                  >
+                    {section.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <h2 className="admin-main-title">Empresa</h2>
           <p className="admin-main-text">Configuración y reportes de tu empresa.</p>
 

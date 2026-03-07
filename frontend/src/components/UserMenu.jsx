@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
@@ -6,6 +6,7 @@ const UserMenu = () => {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [open, setOpen] = useState(false)
+  const menuRef = useRef(null)
   
   const name = user?.nombre || localStorage.getItem('maingest-user-name') || ''
   const email = user?.correo || localStorage.getItem('maingest-user-email') || ''
@@ -24,8 +25,28 @@ const UserMenu = () => {
     navigate('/login', { replace: true })
   }
 
+  useEffect(() => {
+    if (!open) {
+      return undefined
+    }
+
+    const handlePointerDown = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('touchstart', handlePointerDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('touchstart', handlePointerDown)
+    }
+  }, [open])
+
   return (
-    <div className="user-menu">
+    <div className="user-menu" ref={menuRef}>
       <button
         type="button"
         className="user-trigger"
@@ -44,6 +65,18 @@ const UserMenu = () => {
       </button>
       {open && (
         <div className="user-dropdown">
+          <button type="button" className="user-dropdown-item" onClick={() => navigate('/home')}>
+            Home
+          </button>
+          <button type="button" className="user-dropdown-item" onClick={() => navigate('/almacenes')}>
+            Almacenes
+          </button>
+          <button type="button" className="user-dropdown-item" onClick={() => navigate('/catalogo')}>
+            Catálogo
+          </button>
+          <button type="button" className="user-dropdown-item" onClick={() => navigate('/kardex')}>
+            Kárdex
+          </button>
           <button type="button" className="user-dropdown-item" onClick={handleLogout}>
             Cerrar sesión
           </button>

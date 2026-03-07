@@ -4,6 +4,7 @@ import com.example.maingest.domain.Almacen;
 import com.example.maingest.domain.Armario;
 import com.example.maingest.domain.Empresa;
 import com.example.maingest.domain.Item;
+import com.example.maingest.domain.Producto;
 import com.example.maingest.domain.Repisa;
 import com.example.maingest.domain.Usuario;
 import com.example.maingest.repository.EmpresaRepository;
@@ -67,7 +68,13 @@ public class ItemController {
             Long repisaId,
             Long armarioId,
             Long almacenId,
-            Long empresaId
+            Long empresaId,
+            Long productoId,
+            String productoNombre,
+            String productoSku,
+            Integer cantidad,
+            String estadoStock,
+            String lote
     ) {
     }
 
@@ -208,6 +215,7 @@ public class ItemController {
         Armario armario = repisa != null ? repisa.getArmario() : null;
         Almacen almacen = armario != null ? armario.getAlmacen() : null;
         Empresa empresa = almacen != null ? almacen.getEmpresa() : null;
+        Producto producto = item != null ? item.getProducto() : null;
         return new ItemDto(
                 item != null ? item.getId() : null,
                 item != null ? item.getNombre() : null,
@@ -217,7 +225,13 @@ public class ItemController {
                 repisa != null ? repisa.getId() : null,
                 armario != null ? armario.getId() : null,
                 almacen != null ? almacen.getId() : null,
-                empresa != null ? empresa.getId() : null
+                empresa != null ? empresa.getId() : null,
+                producto != null ? producto.getId() : null,
+                producto != null ? producto.getNombre() : null,
+                producto != null ? producto.getSku() : null,
+                item != null ? item.getCantidad() : null,
+                item != null && item.getEstadoStock() != null ? item.getEstadoStock().name() : null,
+                item != null ? item.getLote() : null
         );
     }
 

@@ -8,6 +8,8 @@ import AdminPage from './pages/AdminPage'
 import AlmacenVisualizerPage from './pages/AlmacenVisualizerPage'
 import ArmarioVisualizerPage from './pages/ArmarioVisualizerPage'
 import SuscripcionPage from './pages/SuscripcionPage'
+import CatalogoPage from './pages/CatalogoPage'
+import KardexPage from './pages/KardexPage'
 import { AuthProvider, useAuth } from './context/AuthContext'
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -138,6 +140,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <SuscripcionPage theme={theme} onThemeChange={handleThemeChange} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/catalogo"
+            element={
+              <ProtectedRoute>
+                <CatalogoPage theme={theme} onThemeChange={handleThemeChange} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/kardex"
+            element={
+              <ProtectedRoute>
+                <KardexPage theme={theme} onThemeChange={handleThemeChange} />
               </ProtectedRoute>
             }
           />

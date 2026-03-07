@@ -1,9 +1,10 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 import { backendBaseUrl } from '../utils/config'
 
 const AuthContext = createContext(null)
 
-export const AuthProvider = ({ children }) => {
+const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [role, setRole] = useState(localStorage.getItem('maingest-role') || '')
   const [roles, setRoles] = useState([])
@@ -163,10 +164,11 @@ export const AuthProvider = ({ children }) => {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
-export const useAuth = () => {
+const useAuth = () => {
   const context = useContext(AuthContext)
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider')
   }
   return context
 }
+export { AuthProvider, useAuth }

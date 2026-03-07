@@ -31,6 +31,8 @@ public class PlanSuscripcion {
 
     private Integer limiteUsuarios;
 
+    private Integer limiteProductos;
+
     @Column(nullable = false)
     private Boolean activo = true;
 
@@ -96,6 +98,14 @@ public class PlanSuscripcion {
 
     public void setLimiteUsuarios(Integer limiteUsuarios) {
         this.limiteUsuarios = limiteUsuarios;
+    }
+
+    public Integer getLimiteProductos() {
+        return limiteProductos;
+    }
+
+    public void setLimiteProductos(Integer limiteProductos) {
+        this.limiteProductos = limiteProductos;
     }
 
     public Boolean getActivo() {

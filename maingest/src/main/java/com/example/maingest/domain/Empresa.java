@@ -20,7 +20,7 @@ public class Empresa {
     @Column(nullable = false)
     private String nombre;
 
-    @Column(nullable = false)
+    @Column
     private Boolean bloqueada = false;
 
     private String motivoBloqueo;

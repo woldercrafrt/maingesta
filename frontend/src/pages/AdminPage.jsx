@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import ThemeSelector from '../components/ThemeSelector'
 import UserMenu from '../components/UserMenu'
@@ -8,6 +8,8 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
   const [activeSection, setActiveSection] = useState(
     mode === 'users-roles' ? 'usuarios' : 'resumen',
   )
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const mobileNavRef = useRef(null)
   const [rolesData, setRolesData] = useState(null)
   const [empresasData, setEmpresasData] = useState(null)
   const [usuariosData, setUsuariosData] = useState(null)
@@ -272,6 +274,26 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
         setIsLoadingAuditoria(false)
       })
   }, [activeSection, role, auditoriaData, isLoadingAuditoria])
+
+  useEffect(() => {
+    if (!mobileNavOpen) {
+      return undefined
+    }
+
+    const handlePointerDown = (event) => {
+      if (mobileNavRef.current && !mobileNavRef.current.contains(event.target)) {
+        setMobileNavOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('touchstart', handlePointerDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('touchstart', handlePointerDown)
+    }
+  }, [mobileNavOpen])
 
   const resetRoleForm = () => {
     setEditingRole(null)
@@ -1110,7 +1132,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
       })
   }
 
-  const openUsuarioEmpresaModal = (usuario) => {
+  const _openUsuarioEmpresaModal = (usuario) => {
     console.log('openUsuarioEmpresaModal llamado con usuario:', usuario)
     if (!usuario || !usuario.id) {
       console.log('Usuario inválido o sin ID')
@@ -1866,7 +1888,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
               {mode === 'users-roles' ? 'Usuarios y roles' : 'Administración'}
             </div>
           </div>
-          <div className="admin-sidebar-nav">
+          <div className="admin-sidebar-nav admin-sidebar-nav-desktop">
             {sections.map((section) => (
               <button
                 key={section.id}
@@ -1877,6 +1899,35 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                 {section.label}
               </button>
             ))}
+          </div>
+          <div className="admin-sidebar-nav-mobile" ref={mobileNavRef}>
+            <button
+              type="button"
+              className={`admin-nav-dropdown-trigger ${mobileNavOpen ? 'open' : ''}`}
+              onClick={() => setMobileNavOpen((current) => !current)}
+              aria-expanded={mobileNavOpen}
+            >
+              <span>
+                {sections.find((section) => section.id === activeSection)?.label || 'Seleccionar sección'}
+              </span>
+            </button>
+            {mobileNavOpen && (
+              <div className="admin-nav-dropdown-menu">
+                {sections.map((section) => (
+                  <button
+                    key={section.id}
+                    type="button"
+                    className={`admin-nav-dropdown-item ${activeSection === section.id ? 'active' : ''}`}
+                    onClick={() => {
+                      setActiveSection(section.id)
+                      setMobileNavOpen(false)
+                    }}
+                  >
+                    {section.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </aside>
         <div className="admin-main">

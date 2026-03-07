@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import MobileNavMenu from '../components/MobileNavMenu'
 import ThemeSelector from '../components/ThemeSelector'
 import UserMenu from '../components/UserMenu'
 import { backendBaseUrl } from '../utils/config'
@@ -129,6 +130,7 @@ const SuscripcionPage = ({ theme, onThemeChange }) => {
           <span className="admin-topbar-title">Maingest</span>
         </div>
         <div className="admin-header-right">
+          <MobileNavMenu />
           <Link to="/home" className="theme-button">
             Home
           </Link>

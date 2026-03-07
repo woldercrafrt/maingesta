@@ -1,45 +1,32 @@
 package com.example.maingest.service;
 
-import com.example.maingest.domain.Almacen;
-import com.example.maingest.domain.Armario;
 import com.example.maingest.domain.Empresa;
 import com.example.maingest.domain.EmpresaSuscripcion;
 import com.example.maingest.domain.PlanSuscripcion;
-import com.example.maingest.domain.Repisa;
 import com.example.maingest.repository.AlmacenRepository;
-import com.example.maingest.repository.ArmarioRepository;
 import com.example.maingest.repository.EmpresaSuscripcionRepository;
 import com.example.maingest.repository.EmpresaUsuarioRepository;
-import com.example.maingest.repository.ItemRepository;
-import com.example.maingest.repository.RepisaRepository;
+import com.example.maingest.repository.ProductoRepository;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 public class SuscripcionValidationService {
 
     private final EmpresaSuscripcionRepository empresaSuscripcionRepository;
     private final AlmacenRepository almacenRepository;
-    private final ArmarioRepository armarioRepository;
-    private final RepisaRepository repisaRepository;
-    private final ItemRepository itemRepository;
     private final EmpresaUsuarioRepository empresaUsuarioRepository;
+    private final ProductoRepository productoRepository;
 
     public SuscripcionValidationService(
             EmpresaSuscripcionRepository empresaSuscripcionRepository,
             AlmacenRepository almacenRepository,
-            ArmarioRepository armarioRepository,
-            RepisaRepository repisaRepository,
-            ItemRepository itemRepository,
-            EmpresaUsuarioRepository empresaUsuarioRepository
+            EmpresaUsuarioRepository empresaUsuarioRepository,
+            ProductoRepository productoRepository
     ) {
         this.empresaSuscripcionRepository = empresaSuscripcionRepository;
         this.almacenRepository = almacenRepository;
-        this.armarioRepository = armarioRepository;
-        this.repisaRepository = repisaRepository;
-        this.itemRepository = itemRepository;
         this.empresaUsuarioRepository = empresaUsuarioRepository;
+        this.productoRepository = productoRepository;
     }
 
     public static class ValidationResult {
@@ -104,7 +91,7 @@ public class SuscripcionValidationService {
             return ValidationResult.ok();
         }
 
-        long currentCount = almacenRepository.findByEmpresa(empresa).size();
+        long currentCount = almacenRepository.countByEmpresaId(empresa.getId());
         if (currentCount >= plan.getLimiteAlmacenes()) {
             return ValidationResult.error("LIMITE_ALMACENES", 
                     "Límite de almacenes alcanzado (" + plan.getLimiteAlmacenes() + ")");
@@ -132,12 +119,7 @@ public class SuscripcionValidationService {
             return ValidationResult.ok();
         }
 
-        List<Almacen> almacenes = almacenRepository.findByEmpresa(empresa);
-        long currentCount = 0;
-        for (Almacen almacen : almacenes) {
-            currentCount += armarioRepository.findByAlmacen(almacen).size();
-        }
-
+        long currentCount = almacenRepository.countArmariosByEmpresaId(empresa.getId());
         if (currentCount >= plan.getLimiteArmarios()) {
             return ValidationResult.error("LIMITE_ARMARIOS", 
                     "Límite de armarios alcanzado (" + plan.getLimiteArmarios() + ")");
@@ -165,15 +147,7 @@ public class SuscripcionValidationService {
             return ValidationResult.ok();
         }
 
-        List<Almacen> almacenes = almacenRepository.findByEmpresa(empresa);
-        long currentCount = 0;
-        for (Almacen almacen : almacenes) {
-            List<Armario> armarios = armarioRepository.findByAlmacen(almacen);
-            for (Armario armario : armarios) {
-                currentCount += repisaRepository.findByArmario(armario).size();
-            }
-        }
-
+        long currentCount = almacenRepository.countRepisasByEmpresaId(empresa.getId());
         if (currentCount >= plan.getLimiteRepisas()) {
             return ValidationResult.error("LIMITE_REPISAS", 
                     "Límite de repisas alcanzado (" + plan.getLimiteRepisas() + ")");
@@ -201,21 +175,38 @@ public class SuscripcionValidationService {
             return ValidationResult.ok();
         }
 
-        List<Almacen> almacenes = almacenRepository.findByEmpresa(empresa);
-        long currentCount = 0;
-        for (Almacen almacen : almacenes) {
-            List<Armario> armarios = armarioRepository.findByAlmacen(almacen);
-            for (Armario armario : armarios) {
-                List<Repisa> repisas = repisaRepository.findByArmario(armario);
-                for (Repisa repisa : repisas) {
-                    currentCount += itemRepository.findByRepisa(repisa).size();
-                }
-            }
-        }
-
+        long currentCount = almacenRepository.countItemsByEmpresaId(empresa.getId());
         if (currentCount >= plan.getLimiteItems()) {
             return ValidationResult.error("LIMITE_ITEMS", 
                     "Límite de items alcanzado (" + plan.getLimiteItems() + ")");
+        }
+
+        return ValidationResult.ok();
+    }
+
+    public ValidationResult validateCanCreateProducto(Empresa empresa) {
+        ValidationResult blockedCheck = validateEmpresaNotBlocked(empresa);
+        if (!blockedCheck.isValid()) {
+            return blockedCheck;
+        }
+
+        EmpresaSuscripcion suscripcion = empresaSuscripcionRepository
+                .findFirstByEmpresaAndEstadoOrderByCreatedAtDesc(empresa, "ACTIVA")
+                .orElse(null);
+
+        if (suscripcion == null) {
+            return ValidationResult.error("SIN_SUSCRIPCION", "La empresa no tiene una suscripción activa");
+        }
+
+        PlanSuscripcion plan = suscripcion.getPlan();
+        if (plan == null || plan.getLimiteProductos() == null) {
+            return ValidationResult.ok();
+        }
+
+        long currentCount = productoRepository.countByEmpresaId(empresa.getId());
+        if (currentCount >= plan.getLimiteProductos()) {
+            return ValidationResult.error("LIMITE_PRODUCTOS",
+                    "Límite de productos alcanzado (" + plan.getLimiteProductos() + ")");
         }
 
         return ValidationResult.ok();

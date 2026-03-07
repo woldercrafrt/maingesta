@@ -1,5 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
+import MobileNavMenu from '../components/MobileNavMenu'
 import ThemeSelector from '../components/ThemeSelector'
 import UserMenu from '../components/UserMenu'
 
@@ -14,6 +15,7 @@ const HomePage = ({ theme, onThemeChange }) => {
             <p className="subtitle">Accesos rápidos</p>
           </div>
           <div className="header-right">
+            <MobileNavMenu />
             <ThemeSelector theme={theme} onChange={onThemeChange} />
             <UserMenu />
           </div>
@@ -64,6 +66,18 @@ const HomePage = ({ theme, onThemeChange }) => {
             <span className="card-title">Almacenes</span>
             <span className="card-text">
               Consulta los almacenes creados y su inventario por armario y repisa.
+            </span>
+          </Link>
+          <Link to="/catalogo" className="card-button">
+            <span className="card-title">Catálogo</span>
+            <span className="card-text">
+              Gestiona el catálogo central de productos de tu empresa.
+            </span>
+          </Link>
+          <Link to="/kardex" className="card-button">
+            <span className="card-title">Kárdex</span>
+            <span className="card-text">
+              Consulta y registra los movimientos de entrada, salida y traslado.
             </span>
           </Link>
           {role !== 'ADMIN' && (

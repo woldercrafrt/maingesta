@@ -40,23 +40,17 @@ const AlmacenVisualizerPage = ({ theme, onThemeChange }) => {
     }
   }
 
-  const getTextWidthPx = (() => {
-    let canvas
-    let ctx
-    return (text, font) => {
-      try {
-        if (!canvas) {
-          canvas = document.createElement('canvas')
-          ctx = canvas.getContext('2d')
-        }
-        if (!ctx) return 0
-        ctx.font = font
-        return ctx.measureText(text || '').width || 0
-      } catch {
-        return 0
-      }
+  const getTextWidthPx = (text, font) => {
+    try {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return 0
+      ctx.font = font
+      return ctx.measureText(text || '').width || 0
+    } catch {
+      return 0
     }
-  })()
+  }
 
   const doesArmarioInnerLabelFit = (armarioNombre, armarioWidthPx, armarioHeightPx) => {
     const name = (armarioNombre || '').trim()

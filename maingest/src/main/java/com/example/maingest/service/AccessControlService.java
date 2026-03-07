@@ -149,6 +149,14 @@ public class AccessControlService {
 
         ensurePermiso("REPORTE", 1, "reporte.ver");
         ensurePermiso("REPORTE", 2, "reporte.crear");
+
+        ensurePermiso("PRODUCTO", 1, "producto.ver");
+        ensurePermiso("PRODUCTO", 2, "producto.crear");
+        ensurePermiso("PRODUCTO", 3, "producto.editar");
+        ensurePermiso("PRODUCTO", 4, "producto.eliminar");
+
+        ensurePermiso("KARDEX", 1, "kardex.ver");
+        ensurePermiso("KARDEX", 2, "kardex.crear");
     }
 
     private void ensurePermiso(String area, int codigo, String nombre) {
