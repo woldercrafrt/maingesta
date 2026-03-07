@@ -66,6 +66,14 @@ const HomePage = ({ theme, onThemeChange }) => {
               Consulta los almacenes creados y su inventario por armario y repisa.
             </span>
           </Link>
+          {role !== 'ADMIN' && (
+            <Link to="/suscripcion" className="card-button">
+              <span className="card-title">Suscripción</span>
+              <span className="card-text">
+                Consulta tu plan actual y contrata nuevas suscripciones para tu empresa.
+              </span>
+            </Link>
+          )}
         </div>
       </section>
     </main>

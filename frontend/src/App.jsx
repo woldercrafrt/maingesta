@@ -7,6 +7,7 @@ import AlmacenesPage from './pages/AlmacenesPage'
 import AdminPage from './pages/AdminPage'
 import AlmacenVisualizerPage from './pages/AlmacenVisualizerPage'
 import ArmarioVisualizerPage from './pages/ArmarioVisualizerPage'
+import SuscripcionPage from './pages/SuscripcionPage'
 import { AuthProvider, useAuth } from './context/AuthContext'
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -129,6 +130,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ArmarioVisualizerPage theme={theme} onThemeChange={handleThemeChange} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/suscripcion"
+            element={
+              <ProtectedRoute>
+                <SuscripcionPage theme={theme} onThemeChange={handleThemeChange} />
               </ProtectedRoute>
             }
           />

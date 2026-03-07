@@ -2,18 +2,23 @@ package com.example.maingest.controller;
 
 import com.example.maingest.domain.Empresa;
 import com.example.maingest.domain.EmpresaUsuario;
+import com.example.maingest.domain.AlmacenUsuario;
 import com.example.maingest.domain.Permiso;
 import com.example.maingest.domain.Rol;
 import com.example.maingest.domain.RolPermiso;
 import com.example.maingest.domain.RolPermisoId;
+import com.example.maingest.domain.UsuarioRol;
+import com.example.maingest.domain.UsuarioRolId;
 import com.example.maingest.dto.PermisoDtos.PermisoDto;
 import com.example.maingest.dto.RolDtos.RolCreateDto;
 import com.example.maingest.dto.RolDtos.RolDto;
 import com.example.maingest.repository.EmpresaRepository;
 import com.example.maingest.repository.EmpresaUsuarioRepository;
 import com.example.maingest.repository.PermisoRepository;
+import com.example.maingest.repository.AlmacenUsuarioRepository;
 import com.example.maingest.repository.RolPermisoRepository;
 import com.example.maingest.repository.RolRepository;
+import com.example.maingest.repository.UsuarioRolRepository;
 import com.example.maingest.domain.Usuario;
 import com.example.maingest.service.AccessControlService;
 import com.example.maingest.service.AuditoriaService;
@@ -22,10 +27,13 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -38,6 +46,8 @@ public class RolController {
     private final RolPermisoRepository rolPermisoRepository;
     private final EmpresaRepository empresaRepository;
     private final EmpresaUsuarioRepository empresaUsuarioRepository;
+    private final UsuarioRolRepository usuarioRolRepository;
+    private final AlmacenUsuarioRepository almacenUsuarioRepository;
     private final PermissionService permissionService;
     private final AuditoriaService auditoriaService;
     private final AccessControlService accessControlService;
@@ -48,6 +58,8 @@ public class RolController {
             RolPermisoRepository rolPermisoRepository,
             EmpresaRepository empresaRepository,
             EmpresaUsuarioRepository empresaUsuarioRepository,
+            UsuarioRolRepository usuarioRolRepository,
+            AlmacenUsuarioRepository almacenUsuarioRepository,
             PermissionService permissionService,
             AuditoriaService auditoriaService,
             AccessControlService accessControlService
@@ -57,6 +69,8 @@ public class RolController {
         this.rolPermisoRepository = rolPermisoRepository;
         this.empresaRepository = empresaRepository;
         this.empresaUsuarioRepository = empresaUsuarioRepository;
+        this.usuarioRolRepository = usuarioRolRepository;
+        this.almacenUsuarioRepository = almacenUsuarioRepository;
         this.permissionService = permissionService;
         this.auditoriaService = auditoriaService;
         this.accessControlService = accessControlService;
@@ -115,7 +129,7 @@ public class RolController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<RolDto> obtener(@PathVariable Long id) {
+    public ResponseEntity<RolDto> obtener(@PathVariable("id") Long id) {
         Usuario actor = currentUsuario();
         if (actor == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -139,7 +153,7 @@ public class RolController {
         }
         Rol rol = new Rol();
         rol.setNombre(dto.nombre());
-        rol.setDescripcion(dto.descripcion());
+        rol.setDescripcion(dto.descripcion() != null ? dto.descripcion() : "");
         if (dto.empresaId() != null) {
             Empresa empresa = empresaRepository.findById(dto.empresaId()).orElse(null);
             rol.setEmpresa(empresa);
@@ -159,7 +173,7 @@ public class RolController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<RolDto> actualizar(@PathVariable Long id, @RequestBody RolCreateDto actualizacion) {
+    public ResponseEntity<RolDto> actualizar(@PathVariable("id") Long id, @RequestBody RolCreateDto actualizacion) {
         Usuario actor = currentUsuario();
         if (actor == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -173,7 +187,7 @@ public class RolController {
         }
         Rol rol = existente.get();
         rol.setNombre(actualizacion.nombre());
-        rol.setDescripcion(actualizacion.descripcion());
+        rol.setDescripcion(actualizacion.descripcion() != null ? actualizacion.descripcion() : "");
         if (actualizacion.empresaId() != null) {
             Empresa empresa = empresaRepository.findById(actualizacion.empresaId()).orElse(null);
             rol.setEmpresa(empresa);
@@ -193,7 +207,7 @@ public class RolController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+    public ResponseEntity<Void> eliminar(@PathVariable("id") Long id) {
         Usuario actor = currentUsuario();
         if (actor == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -206,6 +220,19 @@ public class RolController {
             return ResponseEntity.notFound().build();
         }
         Rol rol = rolOpt.get();
+
+        long usuariosConRol = usuarioRolRepository.countByRol(rol);
+        long usuariosEmpresaConRol = empresaUsuarioRepository.countByRol(rol);
+        long usuariosAlmacenConRol = almacenUsuarioRepository.countByRol(rol);
+        if (usuariosConRol > 0 || usuariosEmpresaConRol > 0 || usuariosAlmacenConRol > 0) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        }
+
+        List<RolPermiso> permisos = rolPermisoRepository.findByRol(rol);
+        if (!permisos.isEmpty()) {
+            rolPermisoRepository.deleteAll(permisos);
+            rolPermisoRepository.flush();
+        }
         rolRepository.deleteById(id);
         auditoriaService.registrar(
                 actor,
@@ -219,7 +246,7 @@ public class RolController {
     }
 
     @GetMapping("/{id}/permisos")
-    public ResponseEntity<List<PermisoDto>> permisosDeRol(@PathVariable Long id) {
+    public ResponseEntity<List<PermisoDto>> permisosDeRol(@PathVariable("id") Long id) {
         Usuario actor = currentUsuario();
         if (actor == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -243,8 +270,145 @@ public class RolController {
     public record AsignarPermisoRequest(Long permisoId) {
     }
 
+    public record EliminarRolRequest(
+            Long nuevoRolId,
+            Boolean dejarSinRol
+    ) {
+    }
+
+    @PostMapping("/{id}/eliminar")
+    @Transactional
+    public ResponseEntity<Void> eliminarConReasignacion(
+            @PathVariable("id") Long id,
+            @RequestBody EliminarRolRequest request
+    ) {
+        Usuario actor = currentUsuario();
+        if (actor == null) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        if (!permissionService.hasPermission(actor, "ROL", 4)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        Optional<Rol> rolOpt = rolRepository.findById(id);
+        if (rolOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        Rol rol = rolOpt.get();
+
+        boolean dejarSinRol = request != null && Boolean.TRUE.equals(request.dejarSinRol());
+        Long nuevoRolId = request != null ? request.nuevoRolId() : null;
+        Rol nuevoRol = null;
+        if (!dejarSinRol) {
+            if (nuevoRolId == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            }
+            if (nuevoRolId.equals(rol.getId())) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            }
+            nuevoRol = rolRepository.findById(nuevoRolId).orElse(null);
+            if (nuevoRol == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            }
+        }
+
+        List<UsuarioRol> usuarioRoles = usuarioRolRepository.findByRol(rol);
+        if (!usuarioRoles.isEmpty()) {
+            if (dejarSinRol) {
+                for (UsuarioRol relacion : usuarioRoles) {
+                    if (relacion == null) {
+                        continue;
+                    }
+                    usuarioRolRepository.delete(relacion);
+                }
+                usuarioRolRepository.flush();
+            } else {
+                Rol nuevoRolNoNull = Objects.requireNonNull(nuevoRol);
+                List<UsuarioRol> nuevos = new ArrayList<>();
+                for (UsuarioRol relacion : usuarioRoles) {
+                    if (relacion == null) {
+                        continue;
+                    }
+                    Usuario usuario = relacion.getUsuario();
+                    if (usuario == null || usuario.getId() == null) {
+                        continue;
+                    }
+                    UsuarioRol nuevoRel = new UsuarioRol();
+                    nuevoRel.setUsuario(usuario);
+                    nuevoRel.setRol(nuevoRolNoNull);
+                    nuevoRel.setId(new UsuarioRolId(usuario.getId(), nuevoRolNoNull.getId()));
+                    nuevos.add(nuevoRel);
+                    usuarioRolRepository.delete(relacion);
+                }
+                if (!nuevos.isEmpty()) {
+                    usuarioRolRepository.saveAll(nuevos);
+                }
+                usuarioRolRepository.flush();
+            }
+        }
+
+        List<EmpresaUsuario> empresaUsuarios = empresaUsuarioRepository.findByRol(rol);
+        if (!empresaUsuarios.isEmpty()) {
+            if (dejarSinRol) {
+                for (EmpresaUsuario relacion : empresaUsuarios) {
+                    if (relacion == null) {
+                        continue;
+                    }
+                    relacion.setRol(null);
+                }
+            } else {
+                Rol nuevoRolNoNull = Objects.requireNonNull(nuevoRol);
+                for (EmpresaUsuario relacion : empresaUsuarios) {
+                    if (relacion == null) {
+                        continue;
+                    }
+                    relacion.setRol(nuevoRolNoNull);
+                }
+            }
+            empresaUsuarioRepository.saveAll(empresaUsuarios);
+            empresaUsuarioRepository.flush();
+        }
+
+        List<AlmacenUsuario> almacenUsuarios = almacenUsuarioRepository.findByRol(rol);
+        if (!almacenUsuarios.isEmpty()) {
+            if (dejarSinRol) {
+                for (AlmacenUsuario relacion : almacenUsuarios) {
+                    if (relacion == null) {
+                        continue;
+                    }
+                    relacion.setRol(null);
+                }
+            } else {
+                Rol nuevoRolNoNull = Objects.requireNonNull(nuevoRol);
+                for (AlmacenUsuario relacion : almacenUsuarios) {
+                    if (relacion == null) {
+                        continue;
+                    }
+                    relacion.setRol(nuevoRolNoNull);
+                }
+            }
+            almacenUsuarioRepository.saveAll(almacenUsuarios);
+            almacenUsuarioRepository.flush();
+        }
+
+        List<RolPermiso> permisos = rolPermisoRepository.findByRol(rol);
+        if (!permisos.isEmpty()) {
+            rolPermisoRepository.deleteAll(permisos);
+            rolPermisoRepository.flush();
+        }
+        rolRepository.deleteById(rol.getId());
+        auditoriaService.registrar(
+                actor,
+                "ROL_ELIMINAR",
+                "ROL",
+                rol.getId(),
+                "Eliminó el rol \"" + rol.getNombre() + "\"",
+                null
+        );
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{id}/permisos")
-    public ResponseEntity<Void> asignarPermiso(@PathVariable Long id, @RequestBody AsignarPermisoRequest request) {
+    public ResponseEntity<Void> asignarPermiso(@PathVariable("id") Long id, @RequestBody AsignarPermisoRequest request) {
         Usuario actor = currentUsuario();
         if (actor == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -280,7 +444,7 @@ public class RolController {
     }
 
     @DeleteMapping("/{id}/permisos/{permisoId}")
-    public ResponseEntity<Void> quitarPermiso(@PathVariable Long id, @PathVariable Long permisoId) {
+    public ResponseEntity<Void> quitarPermiso(@PathVariable("id") Long id, @PathVariable("permisoId") Long permisoId) {
         Usuario actor = currentUsuario();
         if (actor == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();

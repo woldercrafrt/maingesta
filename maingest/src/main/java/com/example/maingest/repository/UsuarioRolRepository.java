@@ -12,5 +12,7 @@ public interface UsuarioRolRepository extends JpaRepository<UsuarioRol, UsuarioR
 
     List<UsuarioRol> findByUsuario(Usuario usuario);
 
+    List<UsuarioRol> findByRol(Rol rol);
+
     long countByRol(Rol rol);
 }

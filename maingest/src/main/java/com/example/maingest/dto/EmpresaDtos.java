@@ -4,7 +4,9 @@ public class EmpresaDtos {
 
     public record EmpresaDto(
             Long id,
-            String nombre
+            String nombre,
+            Boolean bloqueada,
+            String motivoBloqueo
     ) {
     }
 

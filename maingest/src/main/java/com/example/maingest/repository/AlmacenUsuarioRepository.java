@@ -16,11 +16,15 @@ public interface AlmacenUsuarioRepository extends JpaRepository<AlmacenUsuario, 
 
     List<AlmacenUsuario> findByAlmacen(Almacen almacen);
 
+    List<AlmacenUsuario> findByRol(Rol rol);
+
     Optional<AlmacenUsuario> findByAlmacenAndUsuario(Almacen almacen, Usuario usuario);
 
     List<AlmacenUsuario> findAllByAlmacenAndUsuario(Almacen almacen, Usuario usuario);
 
     long countByAlmacenAndRol(Almacen almacen, Rol rol);
+
+    long countByRol(Rol rol);
 
     void deleteByAlmacenAndUsuario(Almacen almacen, Usuario usuario);
 }

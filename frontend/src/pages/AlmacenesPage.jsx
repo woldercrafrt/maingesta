@@ -1443,9 +1443,12 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
               </div>
 
               {showCreateItemModal && (
-                <div className="modal-overlay">
-                  <div className="modal-content">
-                    <h3>Agregar inventario</h3>
+                <div className="modal-backdrop">
+                  <div className="modal">
+                    <h3 className="modal-title">Agregar inventario</h3>
+                    <p className="modal-text">Registra un item y ubícalo dentro de un armario y una repisa.</p>
+
+                    <div className="modal-form">
 
                     {role === 'ADMIN' && (
                       <div className="form-group">
@@ -1595,6 +1598,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                       >
                         {isSavingItem ? 'Guardando…' : 'Guardar'}
                       </button>
+                    </div>
                     </div>
                   </div>
                 </div>

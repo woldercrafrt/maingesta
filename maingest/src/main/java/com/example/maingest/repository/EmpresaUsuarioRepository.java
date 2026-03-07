@@ -16,11 +16,15 @@ public interface EmpresaUsuarioRepository extends JpaRepository<EmpresaUsuario, 
 
     List<EmpresaUsuario> findByEmpresa(Empresa empresa);
 
+    List<EmpresaUsuario> findByRol(Rol rol);
+
     Optional<EmpresaUsuario> findByEmpresaAndUsuario(Empresa empresa, Usuario usuario);
 
     List<EmpresaUsuario> findAllByEmpresaAndUsuario(Empresa empresa, Usuario usuario);
 
     long countByEmpresaAndRol(Empresa empresa, Rol rol);
+
+    long countByRol(Rol rol);
 
     void deleteByEmpresaAndUsuario(Empresa empresa, Usuario usuario);
 }

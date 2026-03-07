@@ -1,15 +1,23 @@
 package com.example.maingest.controller;
 
 import com.example.maingest.domain.Empresa;
+import com.example.maingest.domain.EmpresaSuscripcion;
 import com.example.maingest.domain.EmpresaUsuario;
 import com.example.maingest.domain.EmpresaUsuarioId;
+import com.example.maingest.domain.PlanSuscripcion;
 import com.example.maingest.domain.Rol;
 import com.example.maingest.domain.Usuario;
 import com.example.maingest.dto.EmpresaDtos.EmpresaCreateDto;
 import com.example.maingest.dto.EmpresaDtos.EmpresaDto;
+import com.example.maingest.dto.EmpresaSuscripcionDtos.EmpresaBloqueoDto;
+import com.example.maingest.dto.EmpresaSuscripcionDtos.EmpresaSuscripcionCreateDto;
+import com.example.maingest.dto.EmpresaSuscripcionDtos.EmpresaSuscripcionDto;
 import com.example.maingest.dto.EmpresaUsuarioDto;
+import com.example.maingest.dto.PlanSuscripcionDtos.PlanSuscripcionDto;
 import com.example.maingest.repository.EmpresaRepository;
+import com.example.maingest.repository.EmpresaSuscripcionRepository;
 import com.example.maingest.repository.EmpresaUsuarioRepository;
+import com.example.maingest.repository.PlanSuscripcionRepository;
 import com.example.maingest.repository.RolRepository;
 import com.example.maingest.repository.UsuarioRepository;
 import com.example.maingest.service.AccessControlService;
@@ -23,6 +31,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,6 +45,8 @@ public class EmpresaController {
     private final UsuarioRepository usuarioRepository;
     private final RolRepository rolRepository;
     private final EmpresaUsuarioRepository empresaUsuarioRepository;
+    private final EmpresaSuscripcionRepository empresaSuscripcionRepository;
+    private final PlanSuscripcionRepository planSuscripcionRepository;
     private final AccessControlService accessControlService;
     private final PermissionService permissionService;
     private final AuditoriaService auditoriaService;
@@ -43,6 +56,8 @@ public class EmpresaController {
             UsuarioRepository usuarioRepository,
             RolRepository rolRepository,
             EmpresaUsuarioRepository empresaUsuarioRepository,
+            EmpresaSuscripcionRepository empresaSuscripcionRepository,
+            PlanSuscripcionRepository planSuscripcionRepository,
             AccessControlService accessControlService,
             PermissionService permissionService,
             AuditoriaService auditoriaService
@@ -51,6 +66,8 @@ public class EmpresaController {
         this.usuarioRepository = usuarioRepository;
         this.rolRepository = rolRepository;
         this.empresaUsuarioRepository = empresaUsuarioRepository;
+        this.empresaSuscripcionRepository = empresaSuscripcionRepository;
+        this.planSuscripcionRepository = planSuscripcionRepository;
         this.accessControlService = accessControlService;
         this.permissionService = permissionService;
         this.auditoriaService = auditoriaService;
@@ -350,6 +367,165 @@ public class EmpresaController {
     }
 
     private EmpresaDto toDto(Empresa empresa) {
-        return new EmpresaDto(empresa.getId(), empresa.getNombre());
+        return new EmpresaDto(
+                empresa.getId(),
+                empresa.getNombre(),
+                empresa.getBloqueada(),
+                empresa.getMotivoBloqueo()
+        );
+    }
+
+    private PlanSuscripcionDto planToDto(PlanSuscripcion plan) {
+        return new PlanSuscripcionDto(
+                plan.getId(),
+                plan.getNombre(),
+                plan.getDescripcion(),
+                plan.getLimiteAlmacenes(),
+                plan.getLimiteArmarios(),
+                plan.getLimiteRepisas(),
+                plan.getLimiteItems(),
+                plan.getLimiteUsuarios(),
+                plan.getActivo()
+        );
+    }
+
+    private EmpresaSuscripcionDto suscripcionToDto(EmpresaSuscripcion es) {
+        long diasRestantes = 0;
+        if (es.getFechaFin() != null) {
+            diasRestantes = ChronoUnit.DAYS.between(LocalDate.now(), es.getFechaFin());
+            if (diasRestantes < 0) {
+                diasRestantes = 0;
+            }
+        }
+        return new EmpresaSuscripcionDto(
+                es.getId(),
+                es.getEmpresa().getId(),
+                es.getEmpresa().getNombre(),
+                es.getPlan().getId(),
+                es.getPlan().getNombre(),
+                es.getFechaInicio(),
+                es.getFechaFin(),
+                diasRestantes,
+                es.getEstado(),
+                planToDto(es.getPlan())
+        );
+    }
+
+    @GetMapping("/{id}/suscripcion")
+    public ResponseEntity<EmpresaSuscripcionDto> suscripcionActual(@PathVariable("id") Long id) {
+        Optional<Empresa> empresaOpt = empresaRepository.findById(id);
+        if (empresaOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        Empresa empresa = empresaOpt.get();
+        Optional<EmpresaSuscripcion> activaOpt =
+                empresaSuscripcionRepository.findFirstByEmpresaAndEstadoOrderByCreatedAtDesc(empresa, "ACTIVA");
+        if (activaOpt.isEmpty()) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(suscripcionToDto(activaOpt.get()));
+    }
+
+    @GetMapping("/{id}/suscripciones")
+    public ResponseEntity<List<EmpresaSuscripcionDto>> historialSuscripciones(@PathVariable("id") Long id) {
+        Optional<Empresa> empresaOpt = empresaRepository.findById(id);
+        if (empresaOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        Empresa empresa = empresaOpt.get();
+        List<EmpresaSuscripcionDto> lista = empresaSuscripcionRepository
+                .findByEmpresaOrderByCreatedAtDesc(empresa)
+                .stream()
+                .map(this::suscripcionToDto)
+                .toList();
+        return ResponseEntity.ok(lista);
+    }
+
+    @PostMapping("/{id}/suscripciones")
+    @Transactional
+    public ResponseEntity<EmpresaSuscripcionDto> asignarSuscripcion(
+            @PathVariable("id") Long id,
+            @RequestBody EmpresaSuscripcionCreateDto dto
+    ) {
+        Usuario actor = currentUsuario();
+        if (actor == null || !accessControlService.isSuperAdmin(actor)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        Optional<Empresa> empresaOpt = empresaRepository.findById(id);
+        if (empresaOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        if (dto.planId() == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        Optional<PlanSuscripcion> planOpt = planSuscripcionRepository.findById(dto.planId());
+        if (planOpt.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        Empresa empresa = empresaOpt.get();
+        PlanSuscripcion plan = planOpt.get();
+
+        Optional<EmpresaSuscripcion> activaOpt =
+                empresaSuscripcionRepository.findFirstByEmpresaAndEstadoOrderByCreatedAtDesc(empresa, "ACTIVA");
+        activaOpt.ifPresent(activa -> {
+            activa.setEstado("REEMPLAZADA");
+            empresaSuscripcionRepository.save(activa);
+        });
+
+        EmpresaSuscripcion nueva = new EmpresaSuscripcion();
+        nueva.setEmpresa(empresa);
+        nueva.setPlan(plan);
+        nueva.setFechaInicio(dto.fechaInicio() != null ? dto.fechaInicio() : LocalDate.now());
+        nueva.setFechaFin(dto.fechaFin());
+        nueva.setEstado("ACTIVA");
+        EmpresaSuscripcion guardada = empresaSuscripcionRepository.save(nueva);
+
+        auditoriaService.registrar(
+                    actor,
+                    "EMPRESA_ASIGNAR_SUSCRIPCION",
+                    "EMPRESA",
+                    empresa.getId(),
+                    "Asignó plan \"" + plan.getNombre() + "\" a empresa \"" + empresa.getNombre() + "\"",
+                    null
+            );
+        return ResponseEntity.status(HttpStatus.CREATED).body(suscripcionToDto(guardada));
+    }
+
+    @PostMapping("/{id}/bloqueo")
+    public ResponseEntity<EmpresaDto> bloquearDesbloquear(
+            @PathVariable("id") Long id,
+            @RequestBody EmpresaBloqueoDto dto
+    ) {
+        Usuario actor = currentUsuario();
+        if (actor == null || !accessControlService.isSuperAdmin(actor)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        Optional<Empresa> empresaOpt = empresaRepository.findById(id);
+        if (empresaOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        Empresa empresa = empresaOpt.get();
+        boolean bloquear = dto.bloqueada() != null && dto.bloqueada();
+        empresa.setBloqueada(bloquear);
+        empresa.setMotivoBloqueo(bloquear ? (dto.motivo() != null ? dto.motivo() : "") : null);
+        empresa.setBloqueadaAt(bloquear ? LocalDateTime.now() : null);
+        empresaRepository.save(empresa);
+
+        String accion = bloquear ? "EMPRESA_BLOQUEAR" : "EMPRESA_DESBLOQUEAR";
+        String detalle = bloquear
+                ? "Bloqueó empresa \"" + empresa.getNombre() + "\"" + (dto.motivo() != null ? ": " + dto.motivo() : "")
+                : "Desbloqueó empresa \"" + empresa.getNombre() + "\"";
+        auditoriaService.registrar(actor, accion, "EMPRESA", empresa.getId(), detalle, null);
+        return ResponseEntity.ok(toDto(empresa));
+    }
+
+    @GetMapping("/planes-disponibles")
+    public ResponseEntity<List<PlanSuscripcionDto>> planesDisponibles() {
+        List<PlanSuscripcionDto> planes = planSuscripcionRepository.findAll()
+                .stream()
+                .filter(p -> Boolean.TRUE.equals(p.getActivo()))
+                .map(this::planToDto)
+                .toList();
+        return ResponseEntity.ok(planes);
     }
 }

@@ -21,6 +21,10 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
   const [showRoleFormModal, setShowRoleFormModal] = useState(false)
   const [roleToDelete, setRoleToDelete] = useState(null)
   const [showDeleteRoleModal, setShowDeleteRoleModal] = useState(false)
+  const [showDeleteRoleReassignModal, setShowDeleteRoleReassignModal] = useState(false)
+  const [deleteRoleNuevoRolId, setDeleteRoleNuevoRolId] = useState('')
+  const [deleteRoleDejarSinRol, setDeleteRoleDejarSinRol] = useState(false)
+  const [isDeletingRole, setIsDeletingRole] = useState(false)
   const [showRolePermissionsModal, setShowRolePermissionsModal] = useState(false)
   const [roleForPermisos, setRoleForPermisos] = useState(null)
   const [isLoadingRolePermisos, setIsLoadingRolePermisos] = useState(false)
@@ -50,8 +54,28 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
   const [usuarioFormNombre, setUsuarioFormNombre] = useState('')
   const [usuarioFormClave, setUsuarioFormClave] = useState('')
   const [usuarioFormEstado, setUsuarioFormEstado] = useState('ACTIVO')
-  const [usuarioFormRolId, setUsuarioFormRolId] = useState('')
-  const [isSavingUsuarioRol, setIsSavingUsuarioRol] = useState(false)
+  const [usuarioEmpresaDirty, setUsuarioEmpresaDirty] = useState(false)
+  const [planesData, setPlanesData] = useState(null)
+  const [showPlanFormModal, setShowPlanFormModal] = useState(false)
+  const [editingPlan, setEditingPlan] = useState(null)
+  const [planFormNombre, setPlanFormNombre] = useState('')
+  const [planFormDescripcion, setPlanFormDescripcion] = useState('')
+  const [planFormLimAlmacenes, setPlanFormLimAlmacenes] = useState('')
+  const [planFormLimArmarios, setPlanFormLimArmarios] = useState('')
+  const [planFormLimRepisas, setPlanFormLimRepisas] = useState('')
+  const [planFormLimItems, setPlanFormLimItems] = useState('')
+  const [planFormLimUsuarios, setPlanFormLimUsuarios] = useState('')
+  const [isSavingPlan, setIsSavingPlan] = useState(false)
+  const [showAsignarSuscripcionModal, setShowAsignarSuscripcionModal] = useState(false)
+  const [empresaParaSuscripcion, setEmpresaParaSuscripcion] = useState(null)
+  const [suscripcionPlanId, setSuscripcionPlanId] = useState('')
+  const [suscripcionFechaInicio, setSuscripcionFechaInicio] = useState('')
+  const [suscripcionFechaFin, setSuscripcionFechaFin] = useState('')
+  const [isSavingSuscripcion, setIsSavingSuscripcion] = useState(false)
+  const [empresaSuscripciones, setEmpresaSuscripciones] = useState({})
+  const [showBloqueoModal, setShowBloqueoModal] = useState(false)
+  const [empresaParaBloqueo, setEmpresaParaBloqueo] = useState(null)
+  const [bloqueoMotivo, setBloqueoMotivo] = useState('')
   const [auditoriaData, setAuditoriaData] = useState(null)
   const [isLoadingAuditoria, setIsLoadingAuditoria] = useState(false)
   const [auditoriaFilterUsuario, setAuditoriaFilterUsuario] = useState('')
@@ -65,6 +89,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     { id: 'usuarios', label: 'Usuarios' },
     { id: 'roles-globales', label: 'Roles' },
     { id: 'empresas', label: 'Empresas' },
+    { id: 'planes', label: 'Planes de suscripción' },
     { id: 'auditoria', label: 'Historial' },
   ]
 
@@ -106,7 +131,8 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
       (role === 'ADMIN' &&
         (activeSection === 'roles-globales' ||
           activeSection === 'empresas' ||
-          activeSection === 'usuarios')) ||
+          activeSection === 'usuarios' ||
+          activeSection === 'planes')) ||
       (isUsersRolesMode &&
         role === 'ADMIN_EMPRESA' &&
         (activeSection === 'roles-globales' || activeSection === 'usuarios'))
@@ -174,7 +200,40 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
           setError('No se pudo cargar la información.')
         })
     }
-  }, [activeSection, role, mode, empresasData, rolesData, usuariosData])
+    if (activeSection === 'planes' && planesData === null) {
+      fetch(`${backendBaseUrl}/api/planes-suscripcion`, {
+        headers,
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error('Error al cargar planes')
+          }
+          return response.json()
+        })
+        .then((json) => {
+          setPlanesData(json || [])
+          setError(null)
+        })
+        .catch(() => {
+          setError('No se pudo cargar los planes.')
+        })
+    }
+    if (activeSection === 'empresas' && empresasData && planesData === null) {
+      fetch(`${backendBaseUrl}/api/planes-suscripcion`, {
+        headers,
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error('Error al cargar planes')
+          }
+          return response.json()
+        })
+        .then((json) => {
+          setPlanesData(json || [])
+        })
+        .catch(() => {})
+    }
+  }, [activeSection, role, mode, empresasData, rolesData, usuariosData, planesData])
 
   useEffect(() => {
     if (!(role === 'ADMIN' && activeSection === 'auditoria')) {
@@ -368,7 +427,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
         : null
     const cuerpo = JSON.stringify({
       nombre: roleFormNombre.trim(),
-      descripcion: roleFormDescripcion.trim() || null,
+      descripcion: roleFormDescripcion.trim() || '',
       empresaId: empresaIdValue,
     })
     const url =
@@ -487,6 +546,8 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
 
   const openDeleteRole = (rol) => {
     setRoleToDelete(rol)
+    setDeleteRoleNuevoRolId('')
+    setDeleteRoleDejarSinRol(false)
     setShowDeleteRoleModal(true)
   }
 
@@ -502,11 +563,15 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     const headers = {
       Authorization: `Bearer ${token}`,
     }
+    setIsDeletingRole(true)
     fetch(`${backendBaseUrl}/api/roles/${objetivo.id}`, {
       method: 'DELETE',
       headers,
     })
       .then((response) => {
+        if (response.status === 409) {
+          throw new Error('ROL_EN_USO')
+        }
         if (!response.ok && response.status !== 404) {
           throw new Error('Error al eliminar rol')
         }
@@ -523,8 +588,73 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
         setShowDeleteRoleModal(false)
         setError(null)
       })
+      .catch((err) => {
+        if (err && err.message === 'ROL_EN_USO') {
+          setShowDeleteRoleModal(false)
+          setShowDeleteRoleReassignModal(true)
+          return
+        }
+        setError('No se pudo eliminar el rol.')
+      })
+      .finally(() => {
+        setIsDeletingRole(false)
+      })
+  }
+
+  const closeDeleteRoleReassignModal = () => {
+    setShowDeleteRoleReassignModal(false)
+    setDeleteRoleNuevoRolId('')
+    setDeleteRoleDejarSinRol(false)
+  }
+
+  const handleDeleteRoleWithReassign = () => {
+    const objetivo = roleToDelete
+    if (!objetivo || !objetivo.id) {
+      return
+    }
+    const token = localStorage.getItem('maingest-token')
+    if (!token) {
+      return
+    }
+    if (!deleteRoleDejarSinRol && !deleteRoleNuevoRolId) {
+      setError('Debes elegir un rol de reemplazo o marcar dejar sin rol.')
+      return
+    }
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    }
+    setIsDeletingRole(true)
+    fetch(`${backendBaseUrl}/api/roles/${objetivo.id}/eliminar`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        nuevoRolId: deleteRoleDejarSinRol ? null : Number(deleteRoleNuevoRolId),
+        dejarSinRol: deleteRoleDejarSinRol,
+      }),
+    })
+      .then((response) => {
+        if (!response.ok && response.status !== 404) {
+          throw new Error('Error al eliminar rol')
+        }
+        setRolesData((anteriores) => {
+          if (!anteriores) {
+            return anteriores
+          }
+          return anteriores.filter((item) => item.id !== objetivo.id)
+        })
+        if (editingRole && editingRole.id === objetivo.id) {
+          resetRoleForm()
+        }
+        setRoleToDelete(null)
+        closeDeleteRoleReassignModal()
+        setError(null)
+      })
       .catch(() => {
         setError('No se pudo eliminar el rol.')
+      })
+      .finally(() => {
+        setIsDeletingRole(false)
       })
   }
 
@@ -651,7 +781,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     setUsuarioFormNombre('')
     setUsuarioFormClave('')
     setUsuarioFormEstado('ACTIVO')
-    setUsuarioFormRolId('')
+    setUsuarioEmpresaDirty(false)
   }
 
   const closeUsuarioFormModal = () => {
@@ -673,6 +803,24 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
       const headers = {
         Authorization: `Bearer ${token}`,
       }
+      if (!empresasData) {
+        fetch(`${backendBaseUrl}/api/empresas`, {
+          headers,
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error('Error al cargar empresas')
+            }
+            return response.json()
+          })
+          .then((json) => {
+            setEmpresasData(json || [])
+            setError(null)
+          })
+          .catch(() => {
+            setError('No se pudo cargar la información.')
+          })
+      }
       fetch(`${backendBaseUrl}/api/roles`, {
         headers,
       })
@@ -691,12 +839,46 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
         })
     }
     setEditingUsuario(usuario)
+    setUsuarioForEmpresa(usuario)
     setUsuarioFormCorreo(usuario.correo || '')
     setUsuarioFormNombre(usuario.nombre || '')
     setUsuarioFormClave('')
     setUsuarioFormEstado(usuario.estado || 'ACTIVO')
-    setUsuarioFormRolId('')
     setShowUsuarioFormModal(true)
+
+    setEmpresaAsignarId('')
+    setRolAsignarId('')
+    setUsuarioEmpresaDirty(false)
+    const tokenEmpresas = localStorage.getItem('maingest-token')
+    if (tokenEmpresas && usuario && usuario.id) {
+      fetch(`${backendBaseUrl}/api/usuarios/${usuario.id}/empresas`, {
+        headers: {
+          Authorization: `Bearer ${tokenEmpresas}`,
+        },
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error('Error al cargar empresas del usuario')
+          }
+          return response.json()
+        })
+        .then((json) => {
+          const lista = json || []
+          setUsuarioEmpresasDetalle(lista)
+          const item = lista && Array.isArray(lista) && lista.length > 0 ? lista[0] : null
+          const empresaId = item && item.empresaId != null ? String(item.empresaId) : ''
+          const rolId = item && item.rolId != null ? String(item.rolId) : ''
+          setEmpresaAsignarId(empresaId)
+          setRolAsignarId(rolId)
+          setUsuarioEmpresaDirty(false)
+          setError(null)
+        })
+        .catch(() => {
+          setUsuarioEmpresasDetalle([])
+        })
+    } else {
+      setUsuarioEmpresasDetalle([])
+    }
   }
 
   const handleSubmitUsuario = (event) => {
@@ -721,6 +903,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     }
+
     let payload
     if (isEdit) {
       payload = {}
@@ -744,11 +927,84 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
         estado: usuarioFormEstado.trim(),
       }
     }
+
     const url =
       editingUsuario && editingUsuario.id
         ? `${backendBaseUrl}/api/usuarios/${editingUsuario.id}`
         : `${backendBaseUrl}/api/usuarios`
     const method = isEdit ? 'PUT' : 'POST'
+
+    const recargarEmpresasUsuario = (usuarioId) =>
+      fetch(`${backendBaseUrl}/api/usuarios/${usuarioId}/empresas`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }).then((response) => {
+        if (!response.ok) {
+          throw new Error('ERROR_RECARGA_EMPRESAS')
+        }
+        return response.json()
+      })
+
+    const aplicarListaEmpresas = (usuarioId, lista) => {
+      const safeLista = lista || []
+      setUsuarioEmpresasDetalle(safeLista)
+      setUsuariosData((anteriores) => {
+        if (!anteriores) {
+          return anteriores
+        }
+        const item = safeLista.length > 0 ? safeLista[0] : null
+        const empresaId = item && item.empresaId != null ? item.empresaId : null
+        const encontrada =
+          empresaId != null && empresasData && Array.isArray(empresasData)
+            ? empresasData.find((empresa) => empresa.id === empresaId)
+            : null
+        const empresaNombre =
+          empresaId == null
+            ? null
+            : encontrada
+            ? encontrada.nombre
+            : String(empresaId)
+        const rolNombre = item && item.rolNombre ? item.rolNombre : null
+        return anteriores.map((usuario) => {
+          if (usuario.id !== usuarioId) {
+            return usuario
+          }
+          return {
+            ...usuario,
+            empresas: empresaNombre ? [empresaNombre] : [],
+            empresasDetalle:
+              empresaNombre && rolNombre ? [`${empresaNombre} (${rolNombre})`] : [],
+            empresaNombre: empresaNombre || null,
+            empresaRolNombre: rolNombre || null,
+          }
+        })
+      })
+    }
+
+    const quitarEmpresaActualSiExiste = (usuarioId) =>
+      recargarEmpresasUsuario(usuarioId).then((lista) => {
+        const empresaActualId =
+          lista && Array.isArray(lista) && lista.length > 0 ? lista[0].empresaId : null
+        if (empresaActualId == null) {
+          return null
+        }
+        return fetch(`${backendBaseUrl}/api/usuarios/${usuarioId}/empresas/${empresaActualId}`, {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }).then((response) => {
+          if (response.status === 409) {
+            throw new Error('CONFLICTO_QUITAR_EMPRESA')
+          }
+          if (!response.ok && response.status !== 404) {
+            throw new Error('ERROR_QUITAR_EMPRESA')
+          }
+          return null
+        })
+      })
+
     fetch(url, {
       method,
       headers,
@@ -761,99 +1017,96 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
         return response.json()
       })
       .then((guardado) => {
+        const usuarioId = guardado && guardado.id ? guardado.id : editingUsuario?.id
+        if (!usuarioId) {
+          return guardado
+        }
+        const aplicarCambiosExtra = () => {
+          if (!isEdit || !usuarioEmpresaDirty) {
+            return Promise.resolve()
+          }
+
+          // ámbito Global: empresaAsignarId vacío => rol global (rolAsignarId puede ser vacío)
+          if (!empresaAsignarId) {
+            return quitarEmpresaActualSiExiste(usuarioId)
+              .then(() =>
+                fetch(`${backendBaseUrl}/api/usuarios/${usuarioId}/roles`, {
+                  method: 'POST',
+                  headers,
+                  body: JSON.stringify({
+                    rolId: rolAsignarId ? Number(rolAsignarId) : null,
+                  }),
+                }),
+              )
+              .then((response) => {
+                if (response.status === 409) {
+                  throw new Error('CONFLICTO_ROL')
+                }
+                if (!response.ok) {
+                  throw new Error('ERROR_ASIGNAR_ROL')
+                }
+                return null
+              })
+          }
+
+          // ámbito Empresa
+          return fetch(`${backendBaseUrl}/api/usuarios/${usuarioId}/empresas`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              empresaId: Number(empresaAsignarId),
+              rolId: rolAsignarId ? Number(rolAsignarId) : null,
+            }),
+          }).then((response) => {
+            if (response.status === 409) {
+              throw new Error('CONFLICTO_EMPRESA')
+            }
+            if (!response.ok) {
+              throw new Error('ERROR_ASIGNAR_EMPRESA')
+            }
+            return null
+          })
+        }
+
+        return aplicarCambiosExtra()
+          .then(() => recargarEmpresasUsuario(usuarioId))
+          .then((lista) => {
+            aplicarListaEmpresas(usuarioId, lista)
+            return guardado
+          })
+      })
+      .then((guardadoFinal) => {
         setUsuariosData((anteriores) => {
           if (!anteriores) {
-            return [guardado]
+            return [guardadoFinal]
           }
           if (editingUsuario && editingUsuario.id) {
             return anteriores.map((usuario) =>
-              usuario.id === guardado.id ? guardado : usuario,
+              usuario.id === guardadoFinal.id ? guardadoFinal : usuario,
             )
           }
-          return [...anteriores, guardado]
+          return [...anteriores, guardadoFinal]
         })
         closeUsuarioFormModal()
-        setError(null)
-      })
-      .catch(() => {
-        setError('No se pudo guardar el usuario.')
-      })
-      .finally(() => {
-        setIsSavingUsuario(false)
-      })
-  }
-
-  const handleAssignUsuarioRol = () => {
-    if (!editingUsuario || !editingUsuario.id) {
-      return
-    }
-    const token = localStorage.getItem('maingest-token')
-    if (!token) {
-      return
-    }
-    setIsSavingUsuarioRol(true)
-    const headers = {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    }
-    fetch(`${backendBaseUrl}/api/usuarios/${editingUsuario.id}/roles`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        rolId: usuarioFormRolId ? Number(usuarioFormRolId) : null,
-      }),
-    })
-      .then((response) => {
-        if (response.status === 409) {
-          throw new Error('CONFLICTO_ROL')
-        }
-        if (!response.ok) {
-          throw new Error('ERROR_ROL')
-        }
-        return response
-      })
-      .then(() => {
-        setUsuariosData((anteriores) => {
-          if (!anteriores) {
-            return anteriores
-          }
-          const rolSeleccionado =
-            usuarioFormRolId && rolesData && Array.isArray(rolesData)
-              ? rolesData.find((rol) => rol.id === Number(usuarioFormRolId))
-              : null
-          const rolNombre = rolSeleccionado ? rolSeleccionado.nombre : null
-          return anteriores.map((usuario) => {
-            if (usuario.id !== editingUsuario.id) {
-              return usuario
-            }
-            if (!rolNombre) {
-              return {
-                ...usuario,
-                roles: [],
-              }
-            }
-            const actuales = Array.isArray(usuario.roles) ? usuario.roles : []
-            if (actuales.includes(rolNombre)) {
-              return usuario
-            }
-            return {
-              ...usuario,
-              roles: [...actuales, rolNombre],
-            }
-          })
-        })
-        setUsuarioFormRolId('')
         setError(null)
       })
       .catch((err) => {
         if (err && err.message === 'CONFLICTO_ROL') {
           setError('El usuario ya tiene ese rol global.')
-        } else {
-          setError('No se pudo asignar el rol al usuario.')
+          return
         }
+        if (err && err.message === 'CONFLICTO_EMPRESA') {
+          setError('No se pudo asignar la empresa (conflicto).')
+          return
+        }
+        if (err && err.message === 'CONFLICTO_QUITAR_EMPRESA') {
+          setError('No se pudo quitar la empresa del usuario (conflicto).')
+          return
+        }
+        setError('No se pudo guardar el usuario.')
       })
       .finally(() => {
-        setIsSavingUsuarioRol(false)
+        setIsSavingUsuario(false)
       })
   }
 
@@ -1012,7 +1265,9 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
         setUsuarioEmpresasDetalle([])
         setSuccess('Cambio exitoso: usuario asignado a Global sin rol')
         setError(null)
-        closeUsuarioEmpresaModal()
+        if (showUsuarioEmpresaModal) {
+          closeUsuarioEmpresaModal()
+        }
       })
       .catch((err) => {
         console.error('Error en asignarGlobalSinRol:', err)
@@ -1038,205 +1293,423 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
 
   const handleAssignEmpresa = (event) => {
     event.preventDefault()
-    console.log('handleAssignEmpresa llamado, empresaAsignarId:', empresaAsignarId, 'rolAsignarId:', rolAsignarId)
-    
-    // Caso especial: Global con Sin rol
-    if (!empresaAsignarId && !rolAsignarId) {
-      console.log('Asignando Global con Sin rol')
-      asignarGlobalSinRol()
-      return
-    }
-    
     if (!usuarioForEmpresa || !usuarioForEmpresa.id) {
-      console.log('Usuario inválido')
       return
     }
     const token = localStorage.getItem('maingest-token')
     if (!token) {
       return
     }
+
+    // Global + Sin rol
+    if (!empresaAsignarId && !rolAsignarId) {
+      asignarGlobalSinRol()
+      return
+    }
+
     setIsSavingUsuarioEmpresa(true)
     const headers = {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     }
-    if (!empresaAsignarId) {
-      const recargaHeaders = {
-        Authorization: `Bearer ${token}`,
-      }
-      fetch(`${backendBaseUrl}/api/usuarios/${usuarioForEmpresa.id}/empresas`, {
-        headers: recargaHeaders,
-      })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error('ERROR_RECARGA_EMPRESAS')
-          }
-          return response.json()
-        })
-        .then((lista) => {
-          const empresaActualId =
-            lista && Array.isArray(lista) && lista.length > 0
-              ? lista[0].empresaId
-              : null
-          if (empresaActualId == null) {
-            return null
-          }
-          return fetch(
-            `${backendBaseUrl}/api/usuarios/${usuarioForEmpresa.id}/empresas/${empresaActualId}`,
-            {
-              method: 'DELETE',
-              headers: recargaHeaders,
-            },
-          ).then((response) => {
-            if (response.status === 409) {
-              throw new Error('CONFLICTO_QUITAR_EMPRESA')
-            }
-            if (!response.ok) {
-              throw new Error('ERROR_QUITAR_EMPRESA')
-            }
-            return response
-          })
-        })
-        .then(() =>
-          fetch(`${backendBaseUrl}/api/usuarios/${usuarioForEmpresa.id}/roles`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              rolId: rolAsignarId ? Number(rolAsignarId) : null,
-            }),
-          }),
-        )
-        .then((response) => {
-          if (response.status === 409) {
-            throw new Error('CONFLICTO_ROL')
-          }
-          if (!response.ok) {
-            throw new Error('ERROR_ROL')
-          }
-          return response
-        })
-        .then(() => {
-          setUsuarioEmpresasDetalle([])
-          setUsuariosData((anteriores) => {
-            if (!anteriores) {
-              return anteriores
-            }
-            const rolSeleccionado =
-              rolesData && Array.isArray(rolesData)
-                ? rolesData.find((rol) => rol.id === Number(rolAsignarId))
-                : null
-            const rolNombre = rolSeleccionado ? rolSeleccionado.nombre : null
-            return anteriores.map((usuario) => {
-              if (usuario.id !== usuarioForEmpresa.id) {
-                return usuario
-              }
-              const actuales = Array.isArray(usuario.roles) ? usuario.roles : []
-              const rolesActualizados =
-                rolNombre && !actuales.includes(rolNombre)
-                  ? [...actuales, rolNombre]
-                  : actuales
-              return {
-                ...usuario,
-                roles: rolesActualizados,
-                empresas: [],
-                empresasDetalle: [],
-                empresaNombre: null,
-                empresaRolNombre: null,
-              }
-            })
-          })
-          setEmpresaAsignarId('')
-          setRolAsignarId('')
-          setError(null)
-        })
-        .catch((err) => {
-          if (err && err.message === 'CONFLICTO_QUITAR_EMPRESA') {
-            setError('No se pudo quitar la empresa (conflicto).')
-          } else if (err && err.message === 'CONFLICTO_ROL') {
-            setError('El usuario ya tiene ese rol global.')
-          } else {
-            setError('No se pudo asignar el rol global al usuario.')
-          }
-        })
-        .finally(() => {
-          setIsSavingUsuarioEmpresa(false)
-        })
-      return
+    const authHeaders = {
+      Authorization: `Bearer ${token}`,
     }
-    fetch(`${backendBaseUrl}/api/usuarios/${usuarioForEmpresa.id}/empresas`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        empresaId: Number(empresaAsignarId),
-        rolId: Number(rolAsignarId),
-      }),
-    })
-      .then((response) => {
+
+    const recargarEmpresasUsuario = () =>
+      fetch(`${backendBaseUrl}/api/usuarios/${usuarioForEmpresa.id}/empresas`, {
+        headers: authHeaders,
+      }).then((response) => {
+        if (!response.ok) {
+          throw new Error('ERROR_RECARGA_EMPRESAS')
+        }
+        return response.json()
+      })
+
+    const aplicarListaEmpresas = (lista) => {
+      const safeLista = lista || []
+      setUsuarioEmpresasDetalle(safeLista)
+      setUsuariosData((anteriores) => {
+        if (!anteriores) {
+          return anteriores
+        }
+        const item = safeLista.length > 0 ? safeLista[0] : null
+        const empresaId = item && item.empresaId != null ? item.empresaId : null
+        const encontrada =
+          empresaId != null && empresasData && Array.isArray(empresasData)
+            ? empresasData.find((empresa) => empresa.id === empresaId)
+            : null
+        const empresaNombre =
+          empresaId == null
+            ? null
+            : encontrada
+            ? encontrada.nombre
+            : String(empresaId)
+        const rolNombre = item && item.rolNombre ? item.rolNombre : null
+        return anteriores.map((usuario) => {
+          if (usuario.id !== usuarioForEmpresa.id) {
+            return usuario
+          }
+          return {
+            ...usuario,
+            empresas: empresaNombre ? [empresaNombre] : [],
+            empresasDetalle:
+              empresaNombre && rolNombre ? [`${empresaNombre} (${rolNombre})`] : [],
+            empresaNombre: empresaNombre || null,
+            empresaRolNombre: rolNombre || null,
+          }
+        })
+      })
+    }
+
+    const quitarEmpresaActualSiExiste = () =>
+      recargarEmpresasUsuario().then((lista) => {
+        const empresaActualId =
+          lista && Array.isArray(lista) && lista.length > 0 ? lista[0].empresaId : null
+        if (empresaActualId == null) {
+          return null
+        }
+        return fetch(
+          `${backendBaseUrl}/api/usuarios/${usuarioForEmpresa.id}/empresas/${empresaActualId}`,
+          {
+            method: 'DELETE',
+            headers: authHeaders,
+          },
+        ).then((response) => {
+          if (response.status === 409) {
+            throw new Error('CONFLICTO_QUITAR_EMPRESA')
+          }
+          if (!response.ok && response.status !== 404) {
+            throw new Error('ERROR_QUITAR_EMPRESA')
+          }
+          return null
+        })
+      })
+
+    const asignarRolGlobal = () =>
+      fetch(`${backendBaseUrl}/api/usuarios/${usuarioForEmpresa.id}/roles`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          rolId: rolAsignarId ? Number(rolAsignarId) : null,
+        }),
+      }).then((response) => {
+        if (response.status === 409) {
+          throw new Error('CONFLICTO_ROL')
+        }
+        if (!response.ok) {
+          throw new Error('ERROR_ASIGNAR_ROL')
+        }
+        return null
+      })
+
+    const asignarEmpresaYRol = () => {
+      if (!empresaAsignarId) {
+        throw new Error('EMPRESA_REQUERIDA')
+      }
+      return fetch(`${backendBaseUrl}/api/usuarios/${usuarioForEmpresa.id}/empresas`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          empresaId: Number(empresaAsignarId),
+          rolId: rolAsignarId ? Number(rolAsignarId) : null,
+        }),
+      }).then((response) => {
         if (response.status === 409) {
           throw new Error('CONFLICTO_EMPRESA')
         }
         if (!response.ok) {
-          throw new Error('Error al asignar empresa')
+          throw new Error('ERROR_ASIGNAR_EMPRESA')
         }
-        const recargaHeaders = {
-          Authorization: `Bearer ${token}`,
-        }
-        return fetch(
-          `${backendBaseUrl}/api/usuarios/${usuarioForEmpresa.id}/empresas`,
-          {
-            headers: recargaHeaders,
-          },
-        )
+        return null
       })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error('Error al recargar empresas de usuario')
-        }
-        return response.json()
-      })
-      .then((json) => {
-        const lista = json || []
-        setUsuarioEmpresasDetalle(lista)
-        setUsuariosData((anteriores) => {
-          if (!anteriores) {
-            return anteriores
-          }
-          const item = lista && lista.length > 0 ? lista[0] : null
-          const empresaId = item && item.empresaId != null ? item.empresaId : null
-          const encontrada =
-            empresaId != null && empresasData && Array.isArray(empresasData)
-              ? empresasData.find((empresa) => empresa.id === empresaId)
-              : null
-          const empresaNombre =
-            empresaId == null ? null : encontrada ? encontrada.nombre : String(empresaId)
-          const rolNombre = item && item.rolNombre ? item.rolNombre : null
-          return anteriores.map((usuario) => {
-            if (usuario.id !== usuarioForEmpresa.id) {
-              return usuario
-            }
-            return {
-              ...usuario,
-              empresas: empresaNombre ? [empresaNombre] : [],
-              empresasDetalle:
-                empresaNombre && rolNombre ? [`${empresaNombre} (${rolNombre})`] : [],
-              empresaNombre: empresaNombre || null,
-              empresaRolNombre: rolNombre || null,
-            }
-          })
-        })
+    }
+
+    const flujo = !empresaAsignarId
+      ? quitarEmpresaActualSiExiste().then(asignarRolGlobal)
+      : asignarEmpresaYRol()
+
+    flujo
+      .then(() => recargarEmpresasUsuario())
+      .then((lista) => {
+        aplicarListaEmpresas(lista)
         setEmpresaAsignarId('')
         setRolAsignarId('')
         setError(null)
+        if (showUsuarioEmpresaModal) {
+          closeUsuarioEmpresaModal()
+        }
       })
       .catch((err) => {
         if (err && err.message === 'CONFLICTO_EMPRESA') {
           setError('No se pudo asignar la empresa (conflicto).')
-        } else {
-          setError('No se pudo asignar la empresa al usuario.')
+          return
         }
+        if (err && err.message === 'CONFLICTO_ROL') {
+          setError('El usuario ya tiene ese rol global.')
+          return
+        }
+        if (err && err.message === 'EMPRESA_REQUERIDA') {
+          setError('Debe seleccionar una empresa para asignar.')
+          return
+        }
+        setError('No se pudo asignar la empresa al usuario.')
       })
       .finally(() => {
         setIsSavingUsuarioEmpresa(false)
+      })
+  }
+
+  const openCreatePlan = () => {
+    setEditingPlan(null)
+    setPlanFormNombre('')
+    setPlanFormDescripcion('')
+    setPlanFormLimAlmacenes('')
+    setPlanFormLimArmarios('')
+    setPlanFormLimRepisas('')
+    setPlanFormLimItems('')
+    setPlanFormLimUsuarios('')
+    setShowPlanFormModal(true)
+  }
+
+  const openEditPlan = (plan) => {
+    setEditingPlan(plan)
+    setPlanFormNombre(plan.nombre || '')
+    setPlanFormDescripcion(plan.descripcion || '')
+    setPlanFormLimAlmacenes(plan.limiteAlmacenes != null ? String(plan.limiteAlmacenes) : '')
+    setPlanFormLimArmarios(plan.limiteArmarios != null ? String(plan.limiteArmarios) : '')
+    setPlanFormLimRepisas(plan.limiteRepisas != null ? String(plan.limiteRepisas) : '')
+    setPlanFormLimItems(plan.limiteItems != null ? String(plan.limiteItems) : '')
+    setPlanFormLimUsuarios(plan.limiteUsuarios != null ? String(plan.limiteUsuarios) : '')
+    setShowPlanFormModal(true)
+  }
+
+  const closePlanFormModal = () => {
+    setEditingPlan(null)
+    setShowPlanFormModal(false)
+  }
+
+  const handleSubmitPlan = (event) => {
+    event.preventDefault()
+    if (!planFormNombre.trim()) {
+      return
+    }
+    const token = localStorage.getItem('maingest-token')
+    if (!token) {
+      return
+    }
+    setIsSavingPlan(true)
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    }
+    const payload = {
+      nombre: planFormNombre.trim(),
+      descripcion: planFormDescripcion.trim(),
+      limiteAlmacenes: planFormLimAlmacenes ? Number(planFormLimAlmacenes) : null,
+      limiteArmarios: planFormLimArmarios ? Number(planFormLimArmarios) : null,
+      limiteRepisas: planFormLimRepisas ? Number(planFormLimRepisas) : null,
+      limiteItems: planFormLimItems ? Number(planFormLimItems) : null,
+      limiteUsuarios: planFormLimUsuarios ? Number(planFormLimUsuarios) : null,
+    }
+    const url = editingPlan
+      ? `${backendBaseUrl}/api/planes-suscripcion/${editingPlan.id}`
+      : `${backendBaseUrl}/api/planes-suscripcion`
+    const method = editingPlan ? 'PUT' : 'POST'
+    fetch(url, { method, headers, body: JSON.stringify(payload) })
+      .then((response) => {
+        if (response.status === 409) {
+          throw new Error('NOMBRE_DUPLICADO')
+        }
+        if (!response.ok) {
+          throw new Error('Error al guardar plan')
+        }
+        return response.json()
+      })
+      .then((guardado) => {
+        setPlanesData((anteriores) => {
+          if (!anteriores) {
+            return [guardado]
+          }
+          if (editingPlan) {
+            return anteriores.map((p) => (p.id === guardado.id ? guardado : p))
+          }
+          return [...anteriores, guardado]
+        })
+        closePlanFormModal()
+        setError(null)
+      })
+      .catch((err) => {
+        if (err && err.message === 'NOMBRE_DUPLICADO') {
+          setError('Ya existe un plan con ese nombre.')
+          return
+        }
+        setError('No se pudo guardar el plan.')
+      })
+      .finally(() => {
+        setIsSavingPlan(false)
+      })
+  }
+
+  const handleDeletePlan = (plan) => {
+    const token = localStorage.getItem('maingest-token')
+    if (!token) {
+      return
+    }
+    fetch(`${backendBaseUrl}/api/planes-suscripcion/${plan.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((response) => {
+        if (!response.ok && response.status !== 204) {
+          throw new Error('Error al eliminar plan')
+        }
+        setPlanesData((anteriores) => {
+          if (!anteriores) {
+            return anteriores
+          }
+          return anteriores.filter((p) => p.id !== plan.id)
+        })
+        setError(null)
+      })
+      .catch(() => {
+        setError('No se pudo eliminar el plan (puede estar en uso).')
+      })
+  }
+
+  const loadEmpresaSuscripcion = (empresaId) => {
+    const token = localStorage.getItem('maingest-token')
+    if (!token) {
+      return
+    }
+    fetch(`${backendBaseUrl}/api/empresas/${empresaId}/suscripcion`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((response) => {
+        if (response.status === 204) {
+          return null
+        }
+        if (!response.ok) {
+          return null
+        }
+        return response.json()
+      })
+      .then((data) => {
+        setEmpresaSuscripciones((prev) => ({ ...prev, [empresaId]: data || null }))
+      })
+      .catch(() => {})
+  }
+
+  const openAsignarSuscripcion = (empresa) => {
+    setEmpresaParaSuscripcion(empresa)
+    setSuscripcionPlanId('')
+    setSuscripcionFechaInicio(new Date().toISOString().split('T')[0])
+    setSuscripcionFechaFin('')
+    setShowAsignarSuscripcionModal(true)
+    if (planesData === null) {
+      const token = localStorage.getItem('maingest-token')
+      if (token) {
+        fetch(`${backendBaseUrl}/api/planes-suscripcion`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+          .then((r) => r.json())
+          .then((json) => setPlanesData(json || []))
+          .catch(() => {})
+      }
+    }
+  }
+
+  const handleAsignarSuscripcion = (event) => {
+    event.preventDefault()
+    if (!empresaParaSuscripcion || !suscripcionPlanId) {
+      return
+    }
+    const token = localStorage.getItem('maingest-token')
+    if (!token) {
+      return
+    }
+    setIsSavingSuscripcion(true)
+    fetch(`${backendBaseUrl}/api/empresas/${empresaParaSuscripcion.id}/suscripciones`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        planId: Number(suscripcionPlanId),
+        fechaInicio: suscripcionFechaInicio || null,
+        fechaFin: suscripcionFechaFin || null,
+      }),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Error al asignar suscripción')
+        }
+        return response.json()
+      })
+      .then((data) => {
+        setEmpresaSuscripciones((prev) => ({
+          ...prev,
+          [empresaParaSuscripcion.id]: data,
+        }))
+        setShowAsignarSuscripcionModal(false)
+        setEmpresaParaSuscripcion(null)
+        setError(null)
+      })
+      .catch(() => {
+        setError('No se pudo asignar la suscripción.')
+      })
+      .finally(() => {
+        setIsSavingSuscripcion(false)
+      })
+  }
+
+  const openBloqueoModal = (empresa) => {
+    setEmpresaParaBloqueo(empresa)
+    setBloqueoMotivo('')
+    setShowBloqueoModal(true)
+  }
+
+  const handleBloqueo = (bloquear) => {
+    if (!empresaParaBloqueo) {
+      return
+    }
+    const token = localStorage.getItem('maingest-token')
+    if (!token) {
+      return
+    }
+    fetch(`${backendBaseUrl}/api/empresas/${empresaParaBloqueo.id}/bloqueo`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        bloqueada: bloquear,
+        motivo: bloquear ? bloqueoMotivo : null,
+      }),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Error al cambiar bloqueo')
+        }
+        return response.json()
+      })
+      .then((empresaActualizada) => {
+        setEmpresasData((anteriores) => {
+          if (!anteriores) {
+            return anteriores
+          }
+          return anteriores.map((e) =>
+            e.id === empresaActualizada.id ? empresaActualizada : e,
+          )
+        })
+        setShowBloqueoModal(false)
+        setEmpresaParaBloqueo(null)
+        setError(null)
+      })
+      .catch(() => {
+        setError('No se pudo cambiar el estado de bloqueo.')
       })
   }
 
@@ -1268,7 +1741,17 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
           <>
             <h2 className="admin-main-title">Empresas</h2>
             <p className="admin-main-text">
-              Administra las empresas registradas, sus datos y accesos de alto nivel.
+              Administra las empresas registradas, sus suscripciones y estado de bloqueo.
+            </p>
+          </>
+        )
+      }
+      if (activeSection === 'planes') {
+        return (
+          <>
+            <h2 className="admin-main-title">Planes de suscripción</h2>
+            <p className="admin-main-text">
+              Crea y administra los planes con límites de almacenes, armarios, repisas, items y usuarios.
             </p>
           </>
         )
@@ -1481,63 +1964,71 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                     Nuevo rol
                   </button>
                 </div>
-                <div className="admin-table-header">
-                  <div className="admin-table-cell">Nombre de rol</div>
-                  <div className="admin-table-cell">Descripción</div>
-                  <div className="admin-table-cell">Empresa / tipo</div>
-                  <div className="admin-table-cell">Acciones</div>
-                </div>
-                {rolesData === null && !error && (
-                  <div className="admin-table-header admin-table-row">
-                    <div className="admin-table-cell">Cargando roles…</div>
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                  </div>
-                )}
-                {error && (
-                  <div className="admin-table-header admin-table-row">
-                    <div className="admin-table-cell">{error}</div>
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                  </div>
-                )}
-                {!error &&
-                  rolesData &&
-                  rolesData.map((rol) => {
-                    const empresaTipoLabel = rol.empresaNombre || 'Global'
-                    return (
-                      <div key={rol.id} className="admin-table-header admin-table-row">
-                        <div className="admin-table-cell">{rol.nombre}</div>
-                        <div className="admin-table-cell">{rol.descripcion || '—'}</div>
-                        <div className="admin-table-cell">{empresaTipoLabel}</div>
-                        <div className="admin-table-cell admin-table-actions">
-                          <button
-                            type="button"
-                            className="theme-button"
-                            onClick={() => openRolePermissions(rol)}
-                          >
-                            Permisos
-                          </button>
-                          <button
-                            type="button"
-                            className="theme-button"
-                            onClick={() => openEditRole(rol)}
-                          >
-                            Editar
-                          </button>
-                          <button
-                            type="button"
-                            className="theme-button"
-                            onClick={() => openDeleteRole(rol)}
-                          >
-                            Eliminar
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Nombre de rol</th>
+                      <th>Descripción</th>
+                      <th>Empresa / tipo</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rolesData === null && !error && (
+                      <tr>
+                        <td>Cargando roles…</td>
+                        <td />
+                        <td />
+                        <td />
+                      </tr>
+                    )}
+                    {error && (
+                      <tr>
+                        <td>{error}</td>
+                        <td />
+                        <td />
+                        <td />
+                      </tr>
+                    )}
+                    {!error &&
+                      rolesData &&
+                      rolesData.map((rol) => {
+                        const empresaTipoLabel = rol.empresaNombre || 'Global'
+                        return (
+                          <tr key={rol.id}>
+                            <td>{rol.nombre}</td>
+                            <td>{rol.descripcion || '—'}</td>
+                            <td>{empresaTipoLabel}</td>
+                            <td>
+                              <div className="acciones-buttons">
+                                <button
+                                  type="button"
+                                  className="theme-button"
+                                  onClick={() => openRolePermissions(rol)}
+                                >
+                                  Permisos
+                                </button>
+                                <button
+                                  type="button"
+                                  className="theme-button"
+                                  onClick={() => openEditRole(rol)}
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  type="button"
+                                  className="theme-button"
+                                  onClick={() => openDeleteRole(rol)}
+                                >
+                                  Eliminar
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                  </tbody>
+                </table>
               </>
             )}
             {role === 'ADMIN' && activeSection === 'empresas' && (
@@ -1551,53 +2042,195 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                     Nueva empresa
                   </button>
                 </div>
-                <div className="admin-table-header">
-                  <div className="admin-table-cell">Nombre de empresa</div>
-                  <div className="admin-table-cell">ID</div>
-                  <div className="admin-table-cell">Usuarios asignados</div>
-                  <div className="admin-table-cell">Acciones</div>
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Empresa</th>
+                      <th>Plan / Suscripción</th>
+                      <th>Estado</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {empresasData === null && !error && (
+                      <tr>
+                        <td>Cargando empresas…</td>
+                        <td />
+                        <td />
+                        <td />
+                      </tr>
+                    )}
+                    {error && (
+                      <tr>
+                        <td>{error}</td>
+                        <td />
+                        <td />
+                        <td />
+                      </tr>
+                    )}
+                    {!error &&
+                      empresasData &&
+                      empresasData.map((empresa) => {
+                        if (empresaSuscripciones[empresa.id] === undefined) {
+                          loadEmpresaSuscripcion(empresa.id)
+                        }
+                        const sus = empresaSuscripciones[empresa.id] || null
+                        const planLabel = sus ? sus.planNombre : 'Sin plan'
+                        const diasLabel = sus && sus.diasRestantes != null
+                          ? (sus.fechaFin ? `${sus.diasRestantes} días restantes` : 'Sin fecha fin')
+                          : ''
+                        const bloqueada = empresa.bloqueada === true
+                        return (
+                          <tr key={empresa.id}>
+                            <td>
+                              {empresa.nombre}
+                              {bloqueada && (
+                                <span style={{ color: 'var(--color-error, #e53935)', marginLeft: '0.5rem', fontWeight: 600, fontSize: '0.85em' }}>
+                                  BLOQUEADA
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              <div>{planLabel}</div>
+                              {diasLabel && (
+                                <div style={{ fontSize: '0.85em', opacity: 0.7 }}>{diasLabel}</div>
+                              )}
+                              {sus && sus.fechaInicio && (
+                                <div style={{ fontSize: '0.8em', opacity: 0.5 }}>
+                                  {sus.fechaInicio} → {sus.fechaFin || '∞'}
+                                </div>
+                              )}
+                            </td>
+                            <td>
+                              {bloqueada ? (
+                                <span style={{ color: 'var(--color-error, #e53935)' }}>
+                                  Bloqueada{empresa.motivoBloqueo ? `: ${empresa.motivoBloqueo}` : ''}
+                                </span>
+                              ) : (
+                                <span style={{ color: 'var(--color-success, #43a047)' }}>Activa</span>
+                              )}
+                            </td>
+                            <td>
+                              <div className="acciones-buttons">
+                                <button
+                                  type="button"
+                                  className="theme-button"
+                                  onClick={() => openAsignarSuscripcion(empresa)}
+                                >
+                                  Suscripción
+                                </button>
+                                <button
+                                  type="button"
+                                  className="theme-button"
+                                  onClick={() => openBloqueoModal(empresa)}
+                                >
+                                  {bloqueada ? 'Desbloquear' : 'Bloquear'}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="theme-button"
+                                  onClick={() => openEditEmpresa(empresa)}
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  type="button"
+                                  className="theme-button"
+                                  onClick={() => openDeleteEmpresa(empresa)}
+                                >
+                                  Eliminar
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                  </tbody>
+                </table>
+              </>
+            )}
+            {role === 'ADMIN' && activeSection === 'planes' && (
+              <>
+                <div className="admin-table-actions">
+                  <button
+                    type="button"
+                    className="theme-button"
+                    onClick={openCreatePlan}
+                  >
+                    Nuevo plan
+                  </button>
                 </div>
-                {empresasData === null && !error && (
-                  <div className="admin-table-header admin-table-row">
-                    <div className="admin-table-cell">Cargando empresas…</div>
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                  </div>
-                )}
-                {error && (
-                  <div className="admin-table-header admin-table-row">
-                    <div className="admin-table-cell">{error}</div>
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                  </div>
-                )}
-                {!error &&
-                  empresasData &&
-                  empresasData.map((empresa) => (
-                    <div key={empresa.id} className="admin-table-header admin-table-row">
-                      <div className="admin-table-cell">{empresa.nombre}</div>
-                      <div className="admin-table-cell">{empresa.id}</div>
-                      <div className="admin-table-cell">—</div>
-                      <div className="admin-table-cell admin-table-actions">
-                        <button
-                          type="button"
-                          className="theme-button"
-                          onClick={() => openEditEmpresa(empresa)}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          className="theme-button"
-                          onClick={() => openDeleteEmpresa(empresa)}
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Nombre</th>
+                      <th>Descripción</th>
+                      <th>Límites</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {planesData === null && !error && (
+                      <tr>
+                        <td>Cargando planes…</td>
+                        <td />
+                        <td />
+                        <td />
+                      </tr>
+                    )}
+                    {error && (
+                      <tr>
+                        <td>{error}</td>
+                        <td />
+                        <td />
+                        <td />
+                      </tr>
+                    )}
+                    {!error &&
+                      planesData &&
+                      planesData.map((plan) => {
+                        const limites = []
+                        if (plan.limiteAlmacenes != null) limites.push(`${plan.limiteAlmacenes} almacenes`)
+                        if (plan.limiteArmarios != null) limites.push(`${plan.limiteArmarios} armarios`)
+                        if (plan.limiteRepisas != null) limites.push(`${plan.limiteRepisas} repisas`)
+                        if (plan.limiteItems != null) limites.push(`${plan.limiteItems} items`)
+                        if (plan.limiteUsuarios != null) limites.push(`${plan.limiteUsuarios} usuarios`)
+                        const limitesLabel = limites.length > 0 ? limites.join(' · ') : 'Ilimitado'
+                        return (
+                          <tr key={plan.id}>
+                            <td>
+                              {plan.nombre}
+                              {plan.activo === false && (
+                                <span style={{ opacity: 0.5, marginLeft: '0.5rem', fontSize: '0.85em' }}>
+                                  (inactivo)
+                                </span>
+                              )}
+                            </td>
+                            <td>{plan.descripcion || '—'}</td>
+                            <td style={{ fontSize: '0.9em' }}>{limitesLabel}</td>
+                            <td>
+                              <div className="acciones-buttons">
+                                <button
+                                  type="button"
+                                  className="theme-button"
+                                  onClick={() => openEditPlan(plan)}
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  type="button"
+                                  className="theme-button"
+                                  onClick={() => handleDeletePlan(plan)}
+                                >
+                                  Eliminar
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                  </tbody>
+                </table>
               </>
             )}
             {(role === 'ADMIN' || (mode === 'users-roles' && role === 'ADMIN_EMPRESA')) &&
@@ -1632,32 +2265,36 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                     onChange={(event) => setUsuarioFilterRol(event.target.value)}
                   />
                 </div>
-                <div className="admin-table-header">
-                  <div className="admin-table-cell">Correo</div>
-                  <div className="admin-table-cell">Nombre</div>
-                  <div className="admin-table-cell">Rol</div>
-                  <div className="admin-table-cell">Empresa / Estado</div>
-                </div>
-                {usuariosData === null && !error && (
-                  <div className="admin-table-header admin-table-row">
-                    <div className="admin-table-cell">Cargando usuarios…</div>
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                  </div>
-                )}
-                {error && (
-                  <div className="admin-table-header admin-table-row">
-                    <div className="admin-table-cell">{error}</div>
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                  </div>
-                )}
-                {!error &&
-                  usuariosData &&
-                  usuariosData
-                    .filter((usuario) => {
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Correo</th>
+                      <th>Nombre</th>
+                      <th>Rol</th>
+                      <th>Empresa / Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usuariosData === null && !error && (
+                      <tr>
+                        <td>Cargando usuarios…</td>
+                        <td />
+                        <td />
+                        <td />
+                      </tr>
+                    )}
+                    {error && (
+                      <tr>
+                        <td>{error}</td>
+                        <td />
+                        <td />
+                        <td />
+                      </tr>
+                    )}
+                    {!error &&
+                      usuariosData &&
+                      usuariosData
+                        .filter((usuario) => {
                       const texto = usuarioFilterText.toLowerCase()
                       const empresaFiltro = usuarioFilterEmpresa.toLowerCase()
                       const rolFiltro = usuarioFilterRol.toLowerCase()
@@ -1682,8 +2319,8 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                         rolEmpresa.includes(rolFiltro) ||
                         roles.some((rol) => rol && rol.toLowerCase().includes(rolFiltro))
                       return coincideTexto && coincideEmpresa && coincideRol
-                    })
-                    .map((usuario) => {
+                        })
+                        .map((usuario) => {
                       const empresasBase = Array.isArray(usuario.empresas)
                         ? usuario.empresas
                         : []
@@ -1695,41 +2332,30 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                         usuario.empresaRolNombre ||
                         (roles.length > 0 ? roles.join(', ') : 'Sin rol')
                       return (
-                        <div
-                          key={usuario.id}
-                          className="admin-table-header admin-table-row"
-                        >
-                          <div className="admin-table-cell">{usuario.correo}</div>
-                          <div className="admin-table-cell">{usuario.nombre}</div>
-                          <div className="admin-table-cell">{etiquetaRoles}</div>
-                          <div className="admin-table-cell">
+                        <tr key={usuario.id}>
+                          <td>{usuario.correo}</td>
+                          <td>{usuario.nombre}</td>
+                          <td>{etiquetaRoles}</td>
+                          <td>
                             {etiquetaEmpresas}
                             {usuario.estado ? ` · ${usuario.estado}` : ''}
                             <div>
-                              {role === 'ADMIN' && (
+                              <div className="acciones-buttons">
                                 <button
                                   type="button"
                                   className="theme-button"
-                                  onClick={() => {
-                                    console.log('Botón clickeado, usuario:', usuario)
-                                    openUsuarioEmpresaModal(usuario)
-                                  }}
+                                  onClick={() => openEditUsuario(usuario)}
                                 >
-                                  Asignar a empresa
+                                  Editar
                                 </button>
-                              )}
-                              <button
-                                type="button"
-                                className="theme-button"
-                                onClick={() => openEditUsuario(usuario)}
-                              >
-                                Editar
-                              </button>
+                              </div>
                             </div>
-                          </div>
-                        </div>
+                          </td>
+                        </tr>
                       )
-                    })}
+                        })}
+                  </tbody>
+                </table>
               </>
             )}
             {(role === 'ADMIN' || (mode === 'users-roles' && role === 'ADMIN_EMPRESA')) &&
@@ -1814,59 +2440,58 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                     {isLoadingAuditoria ? 'Cargando…' : 'Aplicar filtros'}
                   </button>
                 </div>
-                <div className="admin-table-header">
-                  <div className="admin-table-cell">Fecha</div>
-                  <div className="admin-table-cell">Usuario</div>
-                  <div className="admin-table-cell">Acción</div>
-                  <div className="admin-table-cell">Objeto</div>
-                  <div className="admin-table-cell">Detalle</div>
-                </div>
-                {isLoadingAuditoria && !error && (
-                  <div className="admin-table-header admin-table-row">
-                    <div className="admin-table-cell">Cargando historial…</div>
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                  </div>
-                )}
-                {error && (
-                  <div className="admin-table-header admin-table-row">
-                    <div className="admin-table-cell">{error}</div>
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                    <div className="admin-table-cell" />
-                  </div>
-                )}
-                {!error &&
-                  !isLoadingAuditoria &&
-                  auditoriaData &&
-                  auditoriaData.map((evento) => {
-                    const fecha = evento.creadoEn
-                      ? new Date(evento.creadoEn).toLocaleString()
-                      : ''
-                    const objetoLabel =
-                      evento.objetoTipo && evento.objetoId
-                        ? `${evento.objetoTipo} #${evento.objetoId}`
-                        : evento.objetoTipo || ''
-                    return (
-                      <div
-                        key={evento.id}
-                        className="admin-table-header admin-table-row"
-                      >
-                        <div className="admin-table-cell">{fecha}</div>
-                        <div className="admin-table-cell">
-                          {evento.usuarioCorreo || evento.usuarioId || '—'}
-                        </div>
-                        <div className="admin-table-cell">{evento.accion}</div>
-                        <div className="admin-table-cell">{objetoLabel}</div>
-                        <div className="admin-table-cell">
-                          {evento.descripcion || 'Sin descripción'}
-                        </div>
-                      </div>
-                    )
-                  })}
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Usuario</th>
+                      <th>Acción</th>
+                      <th>Objeto</th>
+                      <th>Detalle</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {isLoadingAuditoria && !error && (
+                      <tr>
+                        <td>Cargando historial…</td>
+                        <td />
+                        <td />
+                        <td />
+                        <td />
+                      </tr>
+                    )}
+                    {error && (
+                      <tr>
+                        <td>{error}</td>
+                        <td />
+                        <td />
+                        <td />
+                        <td />
+                      </tr>
+                    )}
+                    {!error &&
+                      !isLoadingAuditoria &&
+                      auditoriaData &&
+                      auditoriaData.map((evento) => {
+                        const fecha = evento.creadoEn
+                          ? new Date(evento.creadoEn).toLocaleString()
+                          : ''
+                        const objetoLabel =
+                          evento.objetoTipo && evento.objetoId
+                            ? `${evento.objetoTipo} #${evento.objetoId}`
+                            : evento.objetoTipo || ''
+                        return (
+                          <tr key={evento.id}>
+                            <td>{fecha}</td>
+                            <td>{evento.usuarioCorreo || evento.usuarioId || '—'}</td>
+                            <td>{evento.accion}</td>
+                            <td>{objetoLabel}</td>
+                            <td>{evento.descripcion || 'Sin descripción'}</td>
+                          </tr>
+                        )
+                      })}
+                  </tbody>
+                </table>
               </>
             )}
             {!(
@@ -1874,6 +2499,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
               (activeSection === 'roles-globales' ||
                 activeSection === 'empresas' ||
                 activeSection === 'usuarios' ||
+                activeSection === 'planes' ||
                 activeSection === 'auditoria')
             ) && (
               <div className="admin-table-header">
@@ -1970,29 +2596,84 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                 value={usuarioFormClave}
                 onChange={(event) => setUsuarioFormClave(event.target.value)}
               />
-              {editingUsuario && (
-                <div className="modal-role-row">
+              {editingUsuario && role === 'ADMIN' && (
+                <>
+                  <div className="modal-text">Rol del usuario</div>
                   <select
-                    value={usuarioFormRolId}
-                    onChange={(event) => setUsuarioFormRolId(event.target.value)}
+                    value={empresaAsignarId}
+                    onChange={(event) => {
+                      setEmpresaAsignarId(event.target.value)
+                      setRolAsignarId('')
+                      setUsuarioEmpresaDirty(true)
+                    }}
                   >
-                    <option value="">Sin rol</option>
-                    {rolesData &&
-                      rolesData.map((rol) => (
-                        <option key={rol.id} value={rol.id}>
-                          {rol.nombre}
+                    <option value="">Global</option>
+                    {empresasData &&
+                      empresasData.map((empresa) => (
+                        <option key={empresa.id} value={empresa.id}>
+                          {empresa.nombre}
                         </option>
                       ))}
                   </select>
-                  <button
-                    type="button"
-                    className="theme-button"
-                    onClick={handleAssignUsuarioRol}
-                    disabled={isSavingUsuarioRol || !usuarioFormRolId}
+                  <select
+                    value={rolAsignarId}
+                    onChange={(event) => {
+                      setRolAsignarId(event.target.value)
+                      setUsuarioEmpresaDirty(true)
+                    }}
                   >
-                    {isSavingUsuarioRol ? 'Asignando rol…' : 'Agregar rol'}
-                  </button>
-                </div>
+                    <option value="">Sin rol</option>
+                    {rolesData &&
+                      rolesData
+                        .filter((rol) => {
+                          if (!empresaAsignarId) {
+                            return rol.empresaId == null
+                          }
+                          return (
+                            rol.empresaId != null &&
+                            Number(rol.empresaId) === Number(empresaAsignarId)
+                          )
+                        })
+                        .map((rol) => (
+                          <option key={rol.id} value={rol.id}>
+                            {rol.nombre}
+                          </option>
+                        ))}
+                  </select>
+                  {usuarioEmpresasDetalle && usuarioEmpresasDetalle.length > 0 && (
+                    <div className="role-permissions-list">
+                      {usuarioEmpresasDetalle.map((item) => {
+                        const empresaNombre =
+                          empresasData && Array.isArray(empresasData)
+                            ? (() => {
+                                const encontrada = empresasData.find(
+                                  (empresa) => empresa.id === item.empresaId,
+                                )
+                                return encontrada
+                                  ? encontrada.nombre
+                                  : item.empresaId
+                              })()
+                            : item.empresaId
+                        const rolNombre = item.rolNombre || 'Sin rol'
+                        return (
+                          <div
+                            key={`${item.empresaId}-${item.usuarioId}-${rolNombre}`}
+                            className="role-permission-item"
+                          >
+                            <span className="role-permission-main">
+                              <span className="role-permission-name">
+                                {empresaNombre}
+                              </span>
+                              <span className="role-permission-meta">
+                                {rolNombre}
+                              </span>
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </>
               )}
               <select
                 value={usuarioFormEstado}
@@ -2356,8 +3037,71 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                 type="button"
                 className="theme-button"
                 onClick={handleDeleteRole}
+                disabled={isDeletingRole}
               >
-                Eliminar
+                {isDeletingRole ? 'Eliminando…' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showDeleteRoleReassignModal && roleToDelete && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <h3 className="modal-title">Eliminar rol en uso</h3>
+            <p className="modal-text">
+              El rol "{roleToDelete.nombre}" está asignado a usuarios. Elige qué hacer con esos usuarios.
+            </p>
+            <div className="modal-form">
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={deleteRoleDejarSinRol}
+                  onChange={(event) => {
+                    const checked = event.target.checked
+                    setDeleteRoleDejarSinRol(checked)
+                    if (checked) {
+                      setDeleteRoleNuevoRolId('')
+                    }
+                  }}
+                />
+                Dejar a los usuarios sin rol
+              </label>
+              {!deleteRoleDejarSinRol && (
+                <select
+                  value={deleteRoleNuevoRolId}
+                  onChange={(event) => setDeleteRoleNuevoRolId(event.target.value)}
+                >
+                  <option value="">Selecciona rol de reemplazo</option>
+                  {(rolesData || [])
+                    .filter((rol) => rol && rol.id && rol.id !== roleToDelete.id)
+                    .map((rol) => (
+                      <option key={rol.id} value={rol.id}>
+                        {rol.nombre}
+                      </option>
+                    ))}
+                </select>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="theme-button"
+                onClick={() => {
+                  closeDeleteRoleReassignModal()
+                  setRoleToDelete(null)
+                }}
+                disabled={isDeletingRole}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="theme-button"
+                onClick={handleDeleteRoleWithReassign}
+                disabled={isDeletingRole}
+              >
+                {isDeletingRole ? 'Eliminando…' : 'Confirmar'}
               </button>
             </div>
           </div>
@@ -2425,6 +3169,188 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                 onClick={handleDeleteEmpresa}
               >
                 Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showPlanFormModal && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <h3 className="modal-title">
+              {editingPlan ? 'Editar plan' : 'Nuevo plan de suscripción'}
+            </h3>
+            <p className="modal-text">
+              {editingPlan
+                ? 'Actualiza el nombre, descripción y límites del plan.'
+                : 'Crea un nuevo plan con los límites que necesites. Deja un campo vacío para "ilimitado".'}
+            </p>
+            <form className="modal-form" onSubmit={handleSubmitPlan}>
+              <input
+                type="text"
+                placeholder="Nombre del plan"
+                value={planFormNombre}
+                onChange={(event) => setPlanFormNombre(event.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="Descripción"
+                value={planFormDescripcion}
+                onChange={(event) => setPlanFormDescripcion(event.target.value)}
+              />
+              <input
+                type="number"
+                placeholder="Límite de almacenes (vacío = ilimitado)"
+                min="0"
+                value={planFormLimAlmacenes}
+                onChange={(event) => setPlanFormLimAlmacenes(event.target.value)}
+              />
+              <input
+                type="number"
+                placeholder="Límite de armarios (vacío = ilimitado)"
+                min="0"
+                value={planFormLimArmarios}
+                onChange={(event) => setPlanFormLimArmarios(event.target.value)}
+              />
+              <input
+                type="number"
+                placeholder="Límite de repisas (vacío = ilimitado)"
+                min="0"
+                value={planFormLimRepisas}
+                onChange={(event) => setPlanFormLimRepisas(event.target.value)}
+              />
+              <input
+                type="number"
+                placeholder="Límite de items (vacío = ilimitado)"
+                min="0"
+                value={planFormLimItems}
+                onChange={(event) => setPlanFormLimItems(event.target.value)}
+              />
+              <input
+                type="number"
+                placeholder="Límite de usuarios (vacío = ilimitado)"
+                min="0"
+                value={planFormLimUsuarios}
+                onChange={(event) => setPlanFormLimUsuarios(event.target.value)}
+              />
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="theme-button"
+                  onClick={closePlanFormModal}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="theme-button"
+                  disabled={isSavingPlan || !planFormNombre.trim()}
+                >
+                  {isSavingPlan ? 'Guardando…' : editingPlan ? 'Guardar' : 'Crear'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {showAsignarSuscripcionModal && empresaParaSuscripcion && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <h3 className="modal-title">Asignar suscripción</h3>
+            <p className="modal-text">
+              Asigna un plan de suscripción a la empresa "{empresaParaSuscripcion.nombre}".
+            </p>
+            <form className="modal-form" onSubmit={handleAsignarSuscripcion}>
+              <select
+                value={suscripcionPlanId}
+                onChange={(event) => setSuscripcionPlanId(event.target.value)}
+              >
+                <option value="">Selecciona un plan</option>
+                {planesData &&
+                  planesData
+                    .filter((p) => p.activo !== false)
+                    .map((plan) => (
+                      <option key={plan.id} value={plan.id}>
+                        {plan.nombre}
+                      </option>
+                    ))}
+              </select>
+              <input
+                type="date"
+                value={suscripcionFechaInicio}
+                onChange={(event) => setSuscripcionFechaInicio(event.target.value)}
+              />
+              <input
+                type="date"
+                value={suscripcionFechaFin}
+                onChange={(event) => setSuscripcionFechaFin(event.target.value)}
+              />
+              {suscripcionFechaInicio && suscripcionFechaFin && (
+                <div className="modal-text" style={{ fontSize: '0.9em', opacity: 0.7 }}>
+                  Duración: {Math.max(0, Math.ceil((new Date(suscripcionFechaFin) - new Date(suscripcionFechaInicio)) / (1000 * 60 * 60 * 24)))} días
+                </div>
+              )}
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="theme-button"
+                  onClick={() => {
+                    setShowAsignarSuscripcionModal(false)
+                    setEmpresaParaSuscripcion(null)
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="theme-button"
+                  disabled={isSavingSuscripcion || !suscripcionPlanId}
+                >
+                  {isSavingSuscripcion ? 'Asignando…' : 'Asignar plan'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {showBloqueoModal && empresaParaBloqueo && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <h3 className="modal-title">
+              {empresaParaBloqueo.bloqueada ? 'Desbloquear empresa' : 'Bloquear empresa'}
+            </h3>
+            <p className="modal-text">
+              {empresaParaBloqueo.bloqueada
+                ? `La empresa "${empresaParaBloqueo.nombre}" está bloqueada. ¿Deseas desbloquearla?`
+                : `¿Seguro que quieres bloquear la empresa "${empresaParaBloqueo.nombre}"?`}
+            </p>
+            {!empresaParaBloqueo.bloqueada && (
+              <div className="modal-form">
+                <input
+                  type="text"
+                  placeholder="Motivo del bloqueo (opcional)"
+                  value={bloqueoMotivo}
+                  onChange={(event) => setBloqueoMotivo(event.target.value)}
+                />
+              </div>
+            )}
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="theme-button"
+                onClick={() => {
+                  setShowBloqueoModal(false)
+                  setEmpresaParaBloqueo(null)
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="theme-button"
+                onClick={() => handleBloqueo(!empresaParaBloqueo.bloqueada)}
+              >
+                {empresaParaBloqueo.bloqueada ? 'Desbloquear' : 'Bloquear'}
               </button>
             </div>
           </div>

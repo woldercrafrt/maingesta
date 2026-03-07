@@ -1,5 +1,6 @@
 package com.example.maingest.domain;
 
+import java.math.BigDecimal;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -26,6 +27,9 @@ public class Item {
 
     @Column(nullable = false)
     private Integer tamanio;
+
+    @Column(name = "precio", precision = 12, scale = 2)
+    private BigDecimal precio;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "repisa_id", nullable = false)
@@ -61,6 +65,14 @@ public class Item {
 
     public void setTamanio(Integer tamanio) {
         this.tamanio = tamanio;
+    }
+
+    public BigDecimal getPrecio() {
+        return precio;
+    }
+
+    public void setPrecio(BigDecimal precio) {
+        this.precio = precio;
     }
 
     public Repisa getRepisa() {

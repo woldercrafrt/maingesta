@@ -15,6 +15,7 @@ import com.example.maingest.repository.ItemRepository;
 import com.example.maingest.repository.RepisaRepository;
 import com.example.maingest.service.AccessControlService;
 import com.example.maingest.service.PermissionService;
+import com.example.maingest.service.SuscripcionValidationService;
 import com.example.maingest.domain.EmpresaUsuario;
 import com.example.maingest.domain.AlmacenUsuario;
 import org.springframework.http.HttpStatus;
@@ -53,6 +54,7 @@ public class AlmacenController {
     private final EmpresaUsuarioRepository empresaUsuarioRepository;
     private final AccessControlService accessControlService;
     private final PermissionService permissionService;
+    private final SuscripcionValidationService suscripcionValidationService;
 
     public AlmacenController(
             AlmacenRepository almacenRepository,
@@ -63,7 +65,8 @@ public class AlmacenController {
             AlmacenUsuarioRepository almacenUsuarioRepository,
             EmpresaUsuarioRepository empresaUsuarioRepository,
             AccessControlService accessControlService,
-            PermissionService permissionService
+            PermissionService permissionService,
+            SuscripcionValidationService suscripcionValidationService
     ) {
         this.almacenRepository = almacenRepository;
         this.empresaRepository = empresaRepository;
@@ -74,6 +77,7 @@ public class AlmacenController {
         this.empresaUsuarioRepository = empresaUsuarioRepository;
         this.accessControlService = accessControlService;
         this.permissionService = permissionService;
+        this.suscripcionValidationService = suscripcionValidationService;
     }
 
     public record AlmacenDto(
@@ -200,6 +204,12 @@ public class AlmacenController {
         }
         if (!accessControlService.isSuperAdmin(actor) && !permissionService.hasPermissionForEmpresa(actor, empresa, "ALMACEN", 2)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        if (!accessControlService.isSuperAdmin(actor)) {
+            SuscripcionValidationService.ValidationResult validation = suscripcionValidationService.validateCanCreateAlmacen(empresa);
+            if (!validation.isValid()) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            }
         }
         Almacen almacen = new Almacen();
         almacen.setNombre(dto.nombre().trim());
@@ -495,6 +505,13 @@ public class AlmacenController {
         if (!accessControlService.isSuperAdmin(actor) && !permissionService.hasPermissionForAlmacen(actor, almacen, "ARMARIO", 2)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
+        Empresa empresa = almacen.getEmpresa();
+        if (empresa != null && !accessControlService.isSuperAdmin(actor)) {
+            SuscripcionValidationService.ValidationResult validation = suscripcionValidationService.validateCanCreateArmario(empresa);
+            if (!validation.isValid()) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            }
+        }
         if (dto.nombre() == null || dto.nombre().isBlank()) {
             return ResponseEntity.badRequest().build();
         }
@@ -614,6 +631,13 @@ public class AlmacenController {
         Almacen almacen = armario.getAlmacen();
         if (almacen != null && !accessControlService.isSuperAdmin(actor) && !permissionService.hasPermissionForAlmacen(actor, almacen, "REPISA", 2)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        Empresa empresa = almacen != null ? almacen.getEmpresa() : null;
+        if (empresa != null && !accessControlService.isSuperAdmin(actor)) {
+            SuscripcionValidationService.ValidationResult validation = suscripcionValidationService.validateCanCreateRepisa(empresa);
+            if (!validation.isValid()) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            }
         }
         if (dto.nivel() == null || dto.nivel() <= 0 || dto.capacidad() == null || dto.capacidad() <= 0) {
             return ResponseEntity.badRequest().build();

@@ -18,6 +18,7 @@ import com.example.maingest.repository.UsuarioRolRepository;
 import com.example.maingest.service.AccessControlService;
 import com.example.maingest.service.AuditoriaService;
 import com.example.maingest.service.PermissionService;
+import com.example.maingest.service.SuscripcionValidationService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.http.HttpStatus;
@@ -43,6 +44,7 @@ public class UsuarioController {
     private final AccessControlService accessControlService;
     private final PermissionService permissionService;
     private final AuditoriaService auditoriaService;
+    private final SuscripcionValidationService suscripcionValidationService;
 
     public UsuarioController(
             UsuarioRepository usuarioRepository,
@@ -52,7 +54,8 @@ public class UsuarioController {
             EmpresaUsuarioRepository empresaUsuarioRepository,
             AccessControlService accessControlService,
             PermissionService permissionService,
-            AuditoriaService auditoriaService
+            AuditoriaService auditoriaService,
+            SuscripcionValidationService suscripcionValidationService
     ) {
         this.usuarioRepository = usuarioRepository;
         this.rolRepository = rolRepository;
@@ -62,6 +65,7 @@ public class UsuarioController {
         this.accessControlService = accessControlService;
         this.permissionService = permissionService;
         this.auditoriaService = auditoriaService;
+        this.suscripcionValidationService = suscripcionValidationService;
     }
 
     private Usuario currentUsuario() {
@@ -343,7 +347,7 @@ public class UsuarioController {
     }
 
     @GetMapping("/{id}/empresas")
-    public ResponseEntity<List<EmpresaUsuarioDto>> empresasDeUsuario(@PathVariable Long id) {
+    public ResponseEntity<List<EmpresaUsuarioDto>> empresasDeUsuario(@PathVariable("id") Long id) {
         Optional<Usuario> usuarioOpt = usuarioRepository.findById(id);
         if (usuarioOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -447,7 +451,7 @@ public class UsuarioController {
     @PostMapping("/{id}/empresas")
     @Transactional
     public ResponseEntity<Void> asignarEmpresa(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @RequestBody AsignarEmpresaRequest request
     ) {
         Usuario actor = currentUsuario();
@@ -481,6 +485,14 @@ public class UsuarioController {
         }
         Usuario usuario = usuarioOpt.get();
         List<EmpresaUsuario> relacionesExistentes = empresaUsuarioRepository.findByUsuario(usuario);
+        
+        if (relacionesExistentes.isEmpty() && !accessControlService.isSuperAdmin(actor)) {
+            SuscripcionValidationService.ValidationResult validation = suscripcionValidationService.validateCanAssignUsuario(empresa);
+            if (!validation.isValid()) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            }
+        }
+        
         if (!relacionesExistentes.isEmpty()) {
             EmpresaUsuario relacionMismaEmpresa = relacionesExistentes.stream()
                     .filter(rel -> rel.getEmpresa() != null
@@ -566,8 +578,8 @@ public class UsuarioController {
 
     @DeleteMapping("/{id}/empresas/{empresaId}")
     public ResponseEntity<Void> quitarEmpresa(
-            @PathVariable Long id,
-            @PathVariable Long empresaId
+            @PathVariable("id") Long id,
+            @PathVariable("empresaId") Long empresaId
     ) {
         Usuario actor = currentUsuario();
         Optional<Usuario> usuarioOpt = usuarioRepository.findById(id);
@@ -601,8 +613,8 @@ public class UsuarioController {
 
     @DeleteMapping("/{id}/empresas/{empresaId}/rol")
     public ResponseEntity<Void> quitarRolEmpresa(
-            @PathVariable Long id,
-            @PathVariable Long empresaId
+            @PathVariable("id") Long id,
+            @PathVariable("empresaId") Long empresaId
     ) {
         Usuario actor = currentUsuario();
         Optional<Usuario> usuarioOpt = usuarioRepository.findById(id);
