@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import ThemeSelector from '../components/ThemeSelector'
 import UserMenu from '../components/UserMenu'
+import LocalNavBar from '../components/LocalNavBar'
 import { useAuth } from '../context/AuthContext'
 import { backendBaseUrl } from '../utils/config'
 
@@ -268,6 +269,8 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
           <UserMenu />
         </div>
       </header>
+
+      <LocalNavBar />
 
       <div className="armario-body">
         <div className="armario-container">

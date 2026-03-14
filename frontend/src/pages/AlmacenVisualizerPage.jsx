@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Navigate } from 'react-router-dom'
 import ThemeSelector from '../components/ThemeSelector'
+import LocalNavBar from '../components/LocalNavBar'
 import { backendBaseUrl } from '../utils/config'
 import { renderAlmacenShape, getAlmacenShapeAspectRatio } from '../utils/shapeUtils'
 
@@ -522,6 +523,7 @@ const AlmacenVisualizerPage = ({ theme, onThemeChange }) => {
       </header>
       <div className="admin-body admin-body-single">
         <div className="admin-main" style={{ width: '100%', padding: '20px' }}>
+          <LocalNavBar />
           {isLoading && <div>Cargando...</div>}
           {error && <div className="error-message">{error}</div>}
           {!isLoading && !error && estructura && (

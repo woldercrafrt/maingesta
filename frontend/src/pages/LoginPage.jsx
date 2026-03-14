@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import ThemeSelector from '../components/ThemeSelector'
+import LocalNavBar from '../components/LocalNavBar'
 import { backendBaseUrl } from '../utils/config'
 import { useAuth } from '../context/AuthContext'
 
@@ -93,6 +94,7 @@ const LoginPage = ({ theme, onThemeChange }) => {
           </div>
           <ThemeSelector theme={theme} onChange={onThemeChange} />
         </header>
+        <LocalNavBar showBack={false} />
         <form className="form" onSubmit={handleManualLogin}>
           <label className="field">
             <span>Correo</span>

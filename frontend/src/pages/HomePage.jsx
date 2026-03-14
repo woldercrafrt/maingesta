@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import MobileNavMenu from '../components/MobileNavMenu'
 import ThemeSelector from '../components/ThemeSelector'
 import UserMenu from '../components/UserMenu'
+import LocalNavBar from '../components/LocalNavBar'
 
 const HomePage = ({ theme, onThemeChange }) => {
   const role = localStorage.getItem('maingest-role') || ''
@@ -20,6 +21,8 @@ const HomePage = ({ theme, onThemeChange }) => {
             <UserMenu />
           </div>
         </header>
+
+        <LocalNavBar />
         <div className="home-hero">
           <div className="home-hero-graphic">
             <span className="home-hero-block" />

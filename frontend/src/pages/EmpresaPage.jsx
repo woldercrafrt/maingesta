@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import MobileNavMenu from '../components/MobileNavMenu'
 import ThemeSelector from '../components/ThemeSelector'
 import UserMenu from '../components/UserMenu'
+import LocalNavBar from '../components/LocalNavBar'
 import { backendBaseUrl } from '../utils/config'
 import { useAuth } from '../context/AuthContext'
 
@@ -411,6 +412,8 @@ const EmpresaPage = ({ theme, onThemeChange }) => {
           </div>
           <h2 className="admin-main-title">Empresa</h2>
           <p className="admin-main-text">Configuración y reportes de tu empresa.</p>
+
+          <LocalNavBar />
 
           {renderSection()}
         </div>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import MobileNavMenu from '../components/MobileNavMenu'
 import ThemeSelector from '../components/ThemeSelector'
 import UserMenu from '../components/UserMenu'
+import LocalNavBar from '../components/LocalNavBar'
 import { useAuth } from '../context/AuthContext'
 import { backendBaseUrl } from '../utils/config'
 
@@ -104,6 +105,19 @@ const CatalogoPage = ({ theme, onThemeChange }) => {
     setEditingProducto(null)
   }
 
+  useEffect(() => {
+    if (!showModal) return undefined
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        handleCloseModal()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [showModal])
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
@@ -195,6 +209,8 @@ const CatalogoPage = ({ theme, onThemeChange }) => {
             Gestiona el catálogo central de productos de tu empresa, sus datos base y su estado.
           </p>
 
+          <LocalNavBar />
+
           <div className="admin-table-shell">
           <div className="admin-table-filters">
             <select 
@@ -224,41 +240,49 @@ const CatalogoPage = ({ theme, onThemeChange }) => {
             )}
           </div>
 
-          {error && <p className="admin-main-text" style={{ color: '#b91c1c', padding: '0 14px 8px' }}>{error}</p>}
+            {error && <p className="admin-main-text" style={{ color: '#b91c1c', padding: '0 14px 8px' }}>{error}</p>}
 
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>SKU</th>
-                <th>Nombre</th>
-                <th>Unidad</th>
-                <th>Precio Base</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan="6">Cargando...</td></tr>
-              ) : productos.length === 0 ? (
-                <tr><td colSpan="6">No hay productos</td></tr>
-              ) : (
-                productos.map(p => (
-                  <tr key={p.id}>
-                    <td>{p.sku}</td>
-                    <td>
-                      <div><strong>{p.nombre}</strong></div>
-                      {p.descripcion && <div style={{ fontSize: '0.85em', color: 'var(--muted)' }}>{p.descripcion}</div>}
-                    </td>
-                    <td>{p.unidadMedida}</td>
-                    <td>{p.precioBase ? `$${p.precioBase.toFixed(2)}` : '-'}</td>
-                    <td>
-                      <span style={{ color: p.activo ? 'green' : 'red' }}>
-                        {p.activo ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </td>
-                    <td>
+          <div className="catalogo-desktop-table">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Nombre</th>
+                  <th>Unidad</th>
+                  <th>Precio Base</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr><td colSpan="6">Cargando...</td></tr>
+                ) : productos.length === 0 ? (
+                  <tr><td colSpan="6">No hay productos</td></tr>
+                ) : (
+                  productos.map(p => (
+                    <tr key={p.id}>
+                      <td>{p.sku}</td>
+                      <td>
+                        <div><strong>{p.nombre}</strong></div>
+                        {p.descripcion && <div style={{ fontSize: '0.85em', color: 'var(--muted)' }}>{p.descripcion}</div>}
+                      </td>
+                      <td>{p.unidadMedida}</td>
+                      <td>{p.precioBase ? `$${p.precioBase.toFixed(2)}` : '-'}</td>
+                      <td>
+                        <span style={{ color: p.activo ? 'green' : 'red' }}>
+                          {p.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </td>
+                      <td>
                       <div className="acciones-buttons">
+                        <button
+                          type="button"
+                          className="action-button"
+                          onClick={() => navigate(`/catalogo/${p.id}`)}
+                        >
+                          👁️ Ver detalle
+                        </button>
                         {canEdit('PRODUCTO', 3) && (
                           <button type="button" className="action-button edit-button" onClick={() => handleOpenModal(p)}>✏️ Editar</button>
                         )}
@@ -267,11 +291,97 @@ const CatalogoPage = ({ theme, onThemeChange }) => {
                         )}
                       </div>
                     </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="catalogo-mobile-cards">
+            {isLoading ? (
+              <p className="admin-main-text" style={{ padding: '0 14px 8px' }}>Cargando...</p>
+            ) : productos.length === 0 ? (
+              <p className="admin-main-text" style={{ padding: '0 14px 8px' }}>No hay productos</p>
+            ) : (
+              <div className="catalogo-card-grid">
+                {productos.map(p => {
+                  return (
+                    <div
+                      key={p.id}
+                      className={`catalogo-card`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => navigate(`/catalogo/${p.id}`)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          navigate(`/catalogo/${p.id}`)
+                        }
+                      }}
+                    >
+                      <div className="catalogo-card-header">
+                        <div className="catalogo-card-title-group">
+                          <div className="catalogo-card-sku">{p.sku || 'Sin SKU'}</div>
+                          <div className="catalogo-card-nombre">{p.nombre}</div>
+                        </div>
+                        <div className="catalogo-card-precio">
+                          {p.precioBase ? `$${p.precioBase.toFixed(2)}` : '-'}
+                        </div>
+                      </div>
+                      <div className="catalogo-card-tags">
+                        <span className="catalogo-card-chip">{p.unidadMedida}</span>
+                        <span className={`catalogo-card-chip ${p.activo ? 'chip-success' : 'chip-danger'}`}>
+                          {p.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      {p.descripcion && (
+                        <div className="catalogo-card-body">
+                          <p className="catalogo-card-descripcion">{p.descripcion}</p>
+                        </div>
+                      )}
+                      <div className="catalogo-card-actions">
+                        <button
+                          type="button"
+                          className="action-button"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            navigate(`/catalogo/${p.id}`)
+                          }}
+                        >
+                          👁️ Ver detalle
+                        </button>
+                        {canEdit('PRODUCTO', 3) && (
+                          <button
+                            type="button"
+                            className="action-button edit-button"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              handleOpenModal(p)
+                            }}
+                          >
+                            ✏️ Editar
+                          </button>
+                        )}
+                        {canDelete('PRODUCTO', 4) && (
+                          <button
+                            type="button"
+                            className="action-button delete-button"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              handleDelete(p.id)
+                            }}
+                          >
+                            🗑️ Eliminar
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         {totalPages > 1 && (
@@ -297,10 +407,13 @@ const CatalogoPage = ({ theme, onThemeChange }) => {
       </div>
 
       {showModal && (
-        <div className="modal-overlay" onClick={handleCloseModal}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <h2>{editingProducto ? 'Editar Producto' : 'Nuevo Producto'}</h2>
-            <form onSubmit={handleSubmit} className="form-grid">
+        <div className="modal-backdrop" onClick={handleCloseModal}>
+          <div className="modal modal-large" onClick={e => e.stopPropagation()}>
+            <h3 className="modal-title">{editingProducto ? 'Editar producto' : 'Nuevo producto'}</h3>
+            <p className="modal-text">
+              Define los datos base del producto. Estos datos se usan en todos los almacenes.
+            </p>
+            <form onSubmit={handleSubmit} className="modal-form">
               {!editingProducto && (
                 <div className="form-group">
                   <label>SKU (Opcional - Autogenerado si se deja vacío)</label>
@@ -376,9 +489,9 @@ const CatalogoPage = ({ theme, onThemeChange }) => {
                 </div>
               )}
 
-              <div className="modal-actions" style={{ gridColumn: '1 / -1', display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-                <button type="button" className="btn btn-secondary" onClick={handleCloseModal}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">Guardar</button>
+              <div className="modal-actions">
+                <button type="button" className="theme-button secondary" onClick={handleCloseModal}>Cancelar</button>
+                <button type="submit" className="theme-button">Guardar</button>
               </div>
             </form>
           </div>

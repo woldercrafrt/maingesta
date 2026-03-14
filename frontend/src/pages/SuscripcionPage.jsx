@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import MobileNavMenu from '../components/MobileNavMenu'
 import ThemeSelector from '../components/ThemeSelector'
 import UserMenu from '../components/UserMenu'
+import LocalNavBar from '../components/LocalNavBar'
 import { backendBaseUrl } from '../utils/config'
 
 const SuscripcionPage = ({ theme, onThemeChange }) => {
@@ -146,6 +147,8 @@ const SuscripcionPage = ({ theme, onThemeChange }) => {
               ? `Gestiona la suscripción de "${empresaNombre}".`
               : 'Gestiona la suscripción de tu empresa.'}
           </p>
+
+          <LocalNavBar />
 
           {error && (
             <div style={{ color: 'var(--color-error, #e53935)', marginBottom: '1rem' }}>

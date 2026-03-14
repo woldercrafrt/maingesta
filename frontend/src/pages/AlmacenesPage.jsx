@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import MobileNavMenu from '../components/MobileNavMenu'
 import ThemeSelector from '../components/ThemeSelector'
 import UserMenu from '../components/UserMenu'
+import LocalNavBar from '../components/LocalNavBar'
 import AlmacenShapeEditor from '../components/AlmacenShapeEditor'
 import { useAuth } from '../context/AuthContext'
 import { backendBaseUrl } from '../utils/config'
@@ -78,6 +79,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
   const [formArmarioEmpresaId, setFormArmarioEmpresaId] = useState('')
   const [formArmarioMeasureMode, setFormArmarioMeasureMode] = useState('metros')
   const [isSavingArmario, setIsSavingArmario] = useState(false)
+  const [tableViewMode, setTableViewMode] = useState('cards')
   const role = localStorage.getItem('maingest-role') || 'ADMIN'
   const isGlobalUser = role === 'ADMIN'
   const roleLabel =
@@ -1249,6 +1251,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
               <p className="admin-main-text">
                 Gestiona los almacenes existentes, aplícales filtros y crea nuevos.
               </p>
+              <LocalNavBar />
               <div className="admin-table-shell">
                 <div className="admin-table-filters">
                   <input
@@ -1285,7 +1288,23 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                     </button>
                   )}
                 </div>
-                <table className="admin-table">
+                <div className="admin-table-view-toggle">
+                  <button
+                    type="button"
+                    className={tableViewMode === 'cards' ? 'active' : ''}
+                    onClick={() => setTableViewMode('cards')}
+                  >
+                    Vista cards
+                  </button>
+                  <button
+                    type="button"
+                    className={tableViewMode === 'table' ? 'active' : ''}
+                    onClick={() => setTableViewMode('table')}
+                  >
+                    Vista tabla
+                  </button>
+                </div>
+                <table className={`admin-table ${tableViewMode === 'cards' ? 'admin-table--cards' : ''}`}>
                   <thead>
                     <tr>
                       <th>Nombre del almacén</th>
@@ -1338,10 +1357,10 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                               }
                             }}
                           >
-                            <td>{almacen.nombre}</td>
-                            <td>{empresaNombre}</td>
-                            <td>{esSeleccionado ? 'Seleccionado para diseño' : 'Disponible'}</td>
-                            <td>
+                            <td data-label="Nombre del almacén">{almacen.nombre}</td>
+                            <td data-label="Empresa">{empresaNombre}</td>
+                            <td data-label="Estado">{esSeleccionado ? 'Seleccionado para diseño' : 'Disponible'}</td>
+                            <td data-label="Acciones">
                               <div className="acciones-buttons">
                                 {canEdit('almacen') && (
                                   <button
@@ -1398,6 +1417,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
               <p className="admin-main-text">
                 Visualiza todo lo que hay dentro de los almacenes, armarios y repisas.
               </p>
+              <LocalNavBar />
               <div className="admin-table-shell">
                 <div className="admin-table-filters">
                   {isGlobalUser ? (
@@ -1604,7 +1624,23 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                     </div>
                   </form>
                 </div>
-                <table className="admin-table">
+                <div className="admin-table-view-toggle">
+                  <button
+                    type="button"
+                    className={tableViewMode === 'cards' ? 'active' : ''}
+                    onClick={() => setTableViewMode('cards')}
+                  >
+                    Vista cards
+                  </button>
+                  <button
+                    type="button"
+                    className={tableViewMode === 'table' ? 'active' : ''}
+                    onClick={() => setTableViewMode('table')}
+                  >
+                    Vista tabla
+                  </button>
+                </div>
+                <table className={`admin-table ${tableViewMode === 'cards' ? 'admin-table--cards' : ''}`}>
                   <thead>
                     <tr>
                       <th>Empresa</th>
@@ -1666,10 +1702,10 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                             key={`${fila.empresaId}-${fila.almacenId}-${fila.armarioId}-${fila.repisaId}-${fila.itemId}`}
                             style={{ borderTop: '1px solid var(--border)' }}
                           >
-                            <td>{fila.empresaNombre || `Empresa #${fila.empresaId}`}</td>
-                            <td>{fila.almacenNombre || `Almacén #${fila.almacenId}`}</td>
-                            <td>{ubicacion}</td>
-                            <td>
+                            <td data-label="Empresa">{fila.empresaNombre || `Empresa #${fila.empresaId}`}</td>
+                            <td data-label="Almacén">{fila.almacenNombre || `Almacén #${fila.almacenId}`}</td>
+                            <td data-label="Ubicación">{ubicacion}</td>
+                            <td data-label="Item">
                               <div style={{ fontWeight: 500 }}>{itemLabel}</div>
                               {(skuLabel || loteLabel) && (
                                 <div style={{ fontSize: '0.85em', color: 'var(--muted)' }}>
@@ -1677,7 +1713,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                                 </div>
                               )}
                             </td>
-                            <td>
+                            <td data-label="Cantidad">
                               <div style={{ fontWeight: 600 }}>{fila.cantidad || 1} uds</div>
                               <div style={{ fontSize: '0.85em', color: 'var(--muted)' }}>{metaLabel}</div>
                             </td>
@@ -1695,6 +1731,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
               <p className="admin-main-text">
                 Revisa y gestiona los armarios de todos tus almacenes.
               </p>
+              <LocalNavBar />
               <div className="admin-table-shell">
                 <div className="admin-table-filters">
                   {isGlobalUser ? (
@@ -1771,11 +1808,11 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                       if (!armariosFiltrados) return null
                       return armariosFiltrados.map((fila, index) => (
                         <tr key={`${fila.almacenId}-${fila.armarioId}-${index}`}>
-                          <td>{fila.empresaNombre}</td>
-                          <td>{fila.almacenNombre}</td>
-                          <td>{fila.armarioNombre}</td>
-                          <td>{fila.repisasCount} repisas</td>
-                          <td>
+                          <td data-label="Empresa">{fila.empresaNombre}</td>
+                          <td data-label="Almacén">{fila.almacenNombre}</td>
+                          <td data-label="Armario">{fila.armarioNombre}</td>
+                          <td data-label="Repisas">{fila.repisasCount} repisas</td>
+                          <td data-label="Acciones">
                             <div className="acciones-buttons">
                               {canView('armario') && (
                                 <button
@@ -1806,6 +1843,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
               <p className="admin-main-text">
                 Visualiza el almacén con su forma y los armarios/repisas ubicados dentro.
               </p>
+              <LocalNavBar />
               <div className="admin-table-shell">
                 <div className="admin-table-filters">
                   <select

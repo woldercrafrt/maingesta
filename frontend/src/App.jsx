@@ -9,6 +9,7 @@ import AlmacenVisualizerPage from './pages/AlmacenVisualizerPage'
 import ArmarioVisualizerPage from './pages/ArmarioVisualizerPage'
 import SuscripcionPage from './pages/SuscripcionPage'
 import CatalogoPage from './pages/CatalogoPage'
+import ProductoDetailPage from './pages/ProductoDetailPage'
 import KardexPage from './pages/KardexPage'
 import { AuthProvider, useAuth } from './context/AuthContext'
 
@@ -148,6 +149,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <CatalogoPage theme={theme} onThemeChange={handleThemeChange} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/catalogo/:id"
+            element={
+              <ProtectedRoute>
+                <ProductoDetailPage theme={theme} onThemeChange={handleThemeChange} />
               </ProtectedRoute>
             }
           />

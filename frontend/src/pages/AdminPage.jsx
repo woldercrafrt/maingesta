@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import ThemeSelector from '../components/ThemeSelector'
 import UserMenu from '../components/UserMenu'
+import LocalNavBar from '../components/LocalNavBar'
 import { backendBaseUrl } from '../utils/config'
 
 const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
@@ -84,6 +85,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
   const [auditoriaFilterObjeto, setAuditoriaFilterObjeto] = useState('')
   const [auditoriaFilterAccion, setAuditoriaFilterAccion] = useState('')
   const [auditoriaFilterTexto, setAuditoriaFilterTexto] = useState('')
+  const [tableViewMode, setTableViewMode] = useState('cards')
   const role = localStorage.getItem('maingest-role') || 'ADMIN'
 
   const sectionsAdmin = [
@@ -1745,6 +1747,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
               Define los roles globales y los que se usan por empresa, así como sus
               permisos.
             </p>
+            <LocalNavBar />
           </>
         )
       }
@@ -1755,6 +1758,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
             <p className="admin-main-text">
               Administra cuentas globales, sus estados y sus accesos principales.
             </p>
+            <LocalNavBar />
           </>
         )
       }
@@ -1765,6 +1769,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
             <p className="admin-main-text">
               Administra las empresas registradas, sus suscripciones y estado de bloqueo.
             </p>
+            <LocalNavBar />
           </>
         )
       }
@@ -1775,6 +1780,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
             <p className="admin-main-text">
               Crea y administra los planes con límites de almacenes, armarios, repisas, items y usuarios.
             </p>
+            <LocalNavBar />
           </>
         )
       }
@@ -1785,6 +1791,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
             <p className="admin-main-text">
               Visualiza el historial de cambios importantes del sistema y accesos relevantes.
             </p>
+            <LocalNavBar />
           </>
         )
       }
@@ -1794,6 +1801,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
           <p className="admin-main-text">
             Vista general del sistema, pensada para supervisar roles, empresas y accesos.
           </p>
+          <LocalNavBar />
         </>
       )
     }
@@ -1806,6 +1814,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
             <p className="admin-main-text">
               Gestiona usuarios internos de la empresa, sus permisos y estados.
             </p>
+            <LocalNavBar />
           </>
         )
       }
@@ -1816,6 +1825,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
             <p className="admin-main-text">
               Configura los almacenes asociados a la empresa y los responsables de cada uno.
             </p>
+            <LocalNavBar />
           </>
         )
       }
@@ -1825,6 +1835,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
           <p className="admin-main-text">
             Panel para ver el estado general de la empresa, usuarios y almacenes.
           </p>
+          <LocalNavBar />
         </>
       )
     }
@@ -1836,6 +1847,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
           <p className="admin-main-text">
             Consulta existencias del almacén y prepara movimientos de entrada y salida.
           </p>
+          <LocalNavBar />
         </>
       )
     }
@@ -1846,6 +1858,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
           <p className="admin-main-text">
             Revisa los movimientos recientes del almacén para controlar las operaciones.
           </p>
+          <LocalNavBar />
         </>
       )
     }
@@ -1855,6 +1868,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
         <p className="admin-main-text">
           Acceso rápido a las tareas diarias del almacén como inventario y movimientos.
         </p>
+        <LocalNavBar />
       </>
     )
   }
@@ -2015,7 +2029,23 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                     Nuevo rol
                   </button>
                 </div>
-                <table className="admin-table">
+                <div className="admin-table-view-toggle">
+                  <button
+                    type="button"
+                    className={tableViewMode === 'cards' ? 'active' : ''}
+                    onClick={() => setTableViewMode('cards')}
+                  >
+                    Vista cards
+                  </button>
+                  <button
+                    type="button"
+                    className={tableViewMode === 'table' ? 'active' : ''}
+                    onClick={() => setTableViewMode('table')}
+                  >
+                    Vista tabla
+                  </button>
+                </div>
+                <table className={`admin-table ${tableViewMode === 'cards' ? 'admin-table--cards' : ''}`}>
                   <thead>
                     <tr>
                       <th>Nombre de rol</th>
@@ -2047,10 +2077,10 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                         const empresaTipoLabel = rol.empresaNombre || 'Global'
                         return (
                           <tr key={rol.id}>
-                            <td>{rol.nombre}</td>
-                            <td>{rol.descripcion || '—'}</td>
-                            <td>{empresaTipoLabel}</td>
-                            <td>
+                            <td data-label="Nombre de rol">{rol.nombre}</td>
+                            <td data-label="Descripción">{rol.descripcion || '—'}</td>
+                            <td data-label="Empresa / tipo">{empresaTipoLabel}</td>
+                            <td data-label="Acciones">
                               <div className="acciones-buttons">
                                 <button
                                   type="button"
@@ -2093,7 +2123,23 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                     Nueva empresa
                   </button>
                 </div>
-                <table className="admin-table">
+                <div className="admin-table-view-toggle">
+                  <button
+                    type="button"
+                    className={tableViewMode === 'cards' ? 'active' : ''}
+                    onClick={() => setTableViewMode('cards')}
+                  >
+                    Vista cards
+                  </button>
+                  <button
+                    type="button"
+                    className={tableViewMode === 'table' ? 'active' : ''}
+                    onClick={() => setTableViewMode('table')}
+                  >
+                    Vista tabla
+                  </button>
+                </div>
+                <table className={`admin-table ${tableViewMode === 'cards' ? 'admin-table--cards' : ''}`}>
                   <thead>
                     <tr>
                       <th>Empresa</th>
@@ -2133,7 +2179,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                         const bloqueada = empresa.bloqueada === true
                         return (
                           <tr key={empresa.id}>
-                            <td>
+                            <td data-label="Empresa">
                               {empresa.nombre}
                               {bloqueada && (
                                 <span style={{ color: 'var(--color-error, #e53935)', marginLeft: '0.5rem', fontWeight: 600, fontSize: '0.85em' }}>
@@ -2211,7 +2257,23 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                     Nuevo plan
                   </button>
                 </div>
-                <table className="admin-table">
+                <div className="admin-table-view-toggle">
+                  <button
+                    type="button"
+                    className={tableViewMode === 'cards' ? 'active' : ''}
+                    onClick={() => setTableViewMode('cards')}
+                  >
+                    Vista cards
+                  </button>
+                  <button
+                    type="button"
+                    className={tableViewMode === 'table' ? 'active' : ''}
+                    onClick={() => setTableViewMode('table')}
+                  >
+                    Vista tabla
+                  </button>
+                </div>
+                <table className={`admin-table ${tableViewMode === 'cards' ? 'admin-table--cards' : ''}`}>
                   <thead>
                     <tr>
                       <th>Nombre</th>
@@ -2249,7 +2311,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                         const limitesLabel = limites.length > 0 ? limites.join(' · ') : 'Ilimitado'
                         return (
                           <tr key={plan.id}>
-                            <td>
+                            <td data-label="Nombre">
                               {plan.nombre}
                               {plan.activo === false && (
                                 <span style={{ opacity: 0.5, marginLeft: '0.5rem', fontSize: '0.85em' }}>
@@ -2257,9 +2319,9 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                                 </span>
                               )}
                             </td>
-                            <td>{plan.descripcion || '—'}</td>
-                            <td style={{ fontSize: '0.9em' }}>{limitesLabel}</td>
-                            <td>
+                            <td data-label="Descripción">{plan.descripcion || '—'}</td>
+                            <td data-label="Límites" style={{ fontSize: '0.9em' }}>{limitesLabel}</td>
+                            <td data-label="Acciones">
                               <div className="acciones-buttons">
                                 <button
                                   type="button"
@@ -2384,10 +2446,10 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                         (roles.length > 0 ? roles.join(', ') : 'Sin rol')
                       return (
                         <tr key={usuario.id}>
-                          <td>{usuario.correo}</td>
-                          <td>{usuario.nombre}</td>
-                          <td>{etiquetaRoles}</td>
-                          <td>
+                          <td data-label="Correo">{usuario.correo}</td>
+                          <td data-label="Nombre">{usuario.nombre}</td>
+                          <td data-label="Rol">{etiquetaRoles}</td>
+                          <td data-label="Empresa / Estado">
                             {etiquetaEmpresas}
                             {usuario.estado ? ` · ${usuario.estado}` : ''}
                             <div>
@@ -2533,11 +2595,11 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                             : evento.objetoTipo || ''
                         return (
                           <tr key={evento.id}>
-                            <td>{fecha}</td>
-                            <td>{evento.usuarioCorreo || evento.usuarioId || '—'}</td>
-                            <td>{evento.accion}</td>
-                            <td>{objetoLabel}</td>
-                            <td>{evento.descripcion || 'Sin descripción'}</td>
+                            <td data-label="Fecha">{fecha}</td>
+                            <td data-label="Usuario">{evento.usuarioCorreo || evento.usuarioId || '—'}</td>
+                            <td data-label="Acción">{evento.accion}</td>
+                            <td data-label="Objeto">{objetoLabel}</td>
+                            <td data-label="Detalle">{evento.descripcion || 'Sin descripción'}</td>
                           </tr>
                         )
                       })}
