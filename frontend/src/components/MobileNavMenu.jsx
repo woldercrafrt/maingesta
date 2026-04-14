@@ -6,7 +6,7 @@ const MobileNavMenu = () => {
   const location = useLocation()
   const menuRef = useRef(null)
   const [open, setOpen] = useState(false)
-  const role = localStorage.getItem('maingest-role') || ''
+  const role = localStorage.getItem('stock pocket-role') || ''
 
   const items = useMemo(() => {
     const baseItems = [

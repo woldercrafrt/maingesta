@@ -19,7 +19,7 @@ const SuscripcionPage = ({ theme, onThemeChange }) => {
   const [success, setSuccess] = useState(null)
 
   useEffect(() => {
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -72,7 +72,7 @@ const SuscripcionPage = ({ theme, onThemeChange }) => {
     if (!empresaId || !selectedPlanId) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -128,7 +128,7 @@ const SuscripcionPage = ({ theme, onThemeChange }) => {
       <header className="admin-topbar">
         <div className="admin-topbar-brand">
           <div className="admin-topbar-mark" />
-          <span className="admin-topbar-title">Maingest</span>
+          <span className="admin-topbar-title">Stock Pocket</span>
         </div>
         <div className="admin-header-right">
           <MobileNavMenu />

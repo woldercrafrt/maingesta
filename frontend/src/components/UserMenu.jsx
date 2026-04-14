@@ -8,9 +8,9 @@ const UserMenu = () => {
   const [open, setOpen] = useState(false)
   const menuRef = useRef(null)
   
-  const name = user?.nombre || localStorage.getItem('maingest-user-name') || ''
-  const email = user?.correo || localStorage.getItem('maingest-user-email') || ''
-  const photo = user?.foto || localStorage.getItem('maingest-user-photo') || ''
+  const name = user?.nombre || localStorage.getItem('stock pocket-user-name') || ''
+  const email = user?.correo || localStorage.getItem('stock pocket-user-email') || ''
+  const photo = user?.foto || localStorage.getItem('stock pocket-user-photo') || ''
 
   const displayName = name || email || 'Usuario'
   const initials = displayName

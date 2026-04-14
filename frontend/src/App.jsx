@@ -40,18 +40,18 @@ const getSystemTheme = () => {
 
 function App() {
   const [isManualTheme, setIsManualTheme] = useState(() => {
-    return Boolean(localStorage.getItem('maingest-theme'))
+    return Boolean(localStorage.getItem('stock pocket-theme'))
   })
   const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('maingest-theme') || getSystemTheme()
+    return localStorage.getItem('stock pocket-theme') || getSystemTheme()
   })
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
     if (isManualTheme) {
-      localStorage.setItem('maingest-theme', theme)
+      localStorage.setItem('stock pocket-theme', theme)
     } else {
-      localStorage.removeItem('maingest-theme')
+      localStorage.removeItem('stock pocket-theme')
     }
   }, [isManualTheme, theme])
 

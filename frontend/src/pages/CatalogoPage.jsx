@@ -193,7 +193,7 @@ const CatalogoPage = ({ theme, onThemeChange }) => {
       <header className="admin-topbar">
         <div className="admin-topbar-brand">
           <div className="admin-topbar-mark" />
-          <span className="admin-topbar-title">Maingest</span>
+          <span className="admin-topbar-title">Stock Pocket</span>
         </div>
         <div className="admin-header-right">
           <MobileNavMenu />

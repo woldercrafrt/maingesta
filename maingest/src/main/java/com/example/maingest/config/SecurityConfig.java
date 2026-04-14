@@ -48,13 +48,16 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final String frontendBaseUrl;
+    private final String corsAllowedOrigins;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
-            @Value("${app.frontend.base-url}") String frontendBaseUrl
+            @Value("${app.frontend.base-url}") String frontendBaseUrl,
+            @Value("${app.cors.allowed-origins}") String corsAllowedOrigins
     ) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.frontendBaseUrl = frontendBaseUrl;
+        this.corsAllowedOrigins = corsAllowedOrigins;
     }
 
     @Bean
@@ -192,16 +195,12 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(
-                "https://localhost:5173",
-                "https://127.0.0.1:5173",
-                "http://localhost:5173",
-                "http://127.0.0.1:5173",
-                "https://localhost:4321",
-                "https://127.0.0.1:4321",
-                "http://localhost:4321",
-                "http://127.0.0.1:4321"
-        ));
+        List<String> origins = List.of(corsAllowedOrigins.split(","))
+                .stream()
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .toList();
+        configuration.setAllowedOrigins(origins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

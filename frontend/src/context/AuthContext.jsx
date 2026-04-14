@@ -6,19 +6,19 @@ const AuthContext = createContext(null)
 
 const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
-  const [role, setRole] = useState(localStorage.getItem('maingest-role') || '')
+  const [role, setRole] = useState(localStorage.getItem('stock pocket-role') || '')
   const [roles, setRoles] = useState([])
   const [permissions, setPermissions] = useState([])
-  const [token, setToken] = useState(localStorage.getItem('maingest-token'))
+  const [token, setToken] = useState(localStorage.getItem('stock pocket-token'))
   const [isLoading, setIsLoading] = useState(true)
 
   const logout = useCallback(() => {
-    localStorage.removeItem('maingest-token')
-    localStorage.removeItem('maingest-role')
-    localStorage.removeItem('maingest-user-id')
-    localStorage.removeItem('maingest-user-name')
-    localStorage.removeItem('maingest-user-email')
-    localStorage.removeItem('maingest-user-photo')
+    localStorage.removeItem('stock pocket-token')
+    localStorage.removeItem('stock pocket-role')
+    localStorage.removeItem('stock pocket-user-id')
+    localStorage.removeItem('stock pocket-user-name')
+    localStorage.removeItem('stock pocket-user-email')
+    localStorage.removeItem('stock pocket-user-photo')
     setToken(null)
     setUser(null)
     setRole('')
@@ -57,11 +57,11 @@ const AuthProvider = ({ children }) => {
         setPermissions(data.permisos || [])
         
         // Update localStorage to keep it in sync (optional but good for initial render before fetch)
-        if (data.role) localStorage.setItem('maingest-role', data.role)
-        if (data.id) localStorage.setItem('maingest-user-id', String(data.id))
-        if (data.nombre) localStorage.setItem('maingest-user-name', data.nombre)
-        if (data.correo) localStorage.setItem('maingest-user-email', data.correo)
-        if (data.foto) localStorage.setItem('maingest-user-photo', data.foto)
+        if (data.role) localStorage.setItem('stock pocket-role', data.role)
+        if (data.id) localStorage.setItem('stock pocket-user-id', String(data.id))
+        if (data.nombre) localStorage.setItem('stock pocket-user-name', data.nombre)
+        if (data.correo) localStorage.setItem('stock pocket-user-email', data.correo)
+        if (data.foto) localStorage.setItem('stock pocket-user-photo', data.foto)
       } else {
         // Token invalid or expired
         logout()
@@ -79,18 +79,18 @@ const AuthProvider = ({ children }) => {
   }, [token, fetchUser])
 
   const login = useCallback((newToken, newRole, userData) => {
-    localStorage.setItem('maingest-token', newToken)
+    localStorage.setItem('stock pocket-token', newToken)
     // Initial optimistic update
     if (newRole) {
-      localStorage.setItem('maingest-role', newRole)
+      localStorage.setItem('stock pocket-role', newRole)
       setRole(newRole)
     }
     if (userData) {
       setUser(userData)
-      if (userData.id) localStorage.setItem('maingest-user-id', String(userData.id))
-      if (userData.nombre) localStorage.setItem('maingest-user-name', userData.nombre)
-      if (userData.correo) localStorage.setItem('maingest-user-email', userData.correo)
-      if (userData.foto) localStorage.setItem('maingest-user-photo', userData.foto)
+      if (userData.id) localStorage.setItem('stock pocket-user-id', String(userData.id))
+      if (userData.nombre) localStorage.setItem('stock pocket-user-name', userData.nombre)
+      if (userData.correo) localStorage.setItem('stock pocket-user-email', userData.correo)
+      if (userData.foto) localStorage.setItem('stock pocket-user-photo', userData.foto)
     }
     // Update token last to trigger the effect
     setToken(newToken)

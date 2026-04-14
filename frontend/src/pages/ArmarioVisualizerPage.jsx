@@ -30,7 +30,7 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       navigate('/login')
       return
@@ -61,7 +61,7 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
   }, [id, navigate])
 
   useEffect(() => {
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) return
 
     fetch(`${backendBaseUrl}/api/reportes/inventario`, {
@@ -87,7 +87,7 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
     if (!nextNivel || !formRepisaCapacidad) return
 
     setIsSaving(true)
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     
     fetch(`${backendBaseUrl}/api/almacenes/armarios/${id}/repisas`, {
       method: 'POST',
@@ -120,7 +120,7 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
     if (!formArmarioAncho || !formArmarioAlto) return
 
     setIsSaving(true)
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
 
     fetch(`${backendBaseUrl}/api/almacenes/armarios/${id}/posicion`, {
       method: 'PATCH',

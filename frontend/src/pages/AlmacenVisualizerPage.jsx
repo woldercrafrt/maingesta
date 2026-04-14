@@ -175,7 +175,7 @@ const AlmacenVisualizerPage = ({ theme, onThemeChange }) => {
   }
 
   const guardarPosicionArmario = (armarioId, posicion) => {
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) return Promise.resolve(null)
     const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
     return fetch(`${backendBaseUrl}/api/almacenes/armarios/${armarioId}/posicion`, {
@@ -334,7 +334,7 @@ const AlmacenVisualizerPage = ({ theme, onThemeChange }) => {
   }
 
   useEffect(() => {
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) return
     Promise.resolve().then(() => {
       setIsLoading(true)
@@ -355,7 +355,7 @@ const AlmacenVisualizerPage = ({ theme, onThemeChange }) => {
   }, [id])
 
   useEffect(() => {
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) return
 
     fetch(`${backendBaseUrl}/api/reportes/inventario`, {
@@ -442,7 +442,7 @@ const AlmacenVisualizerPage = ({ theme, onThemeChange }) => {
     }
   }, [estructura])
 
-  const token = localStorage.getItem('maingest-token')
+  const token = localStorage.getItem('stock pocket-token')
   if (!token) return <Navigate to="/" />
 
   const almacenId = Number(id)

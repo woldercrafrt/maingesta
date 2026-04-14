@@ -90,7 +90,7 @@ const LoginPage = ({ theme, onThemeChange }) => {
         <header className="header">
           <div>
             <h1 className="title">Inicio de sesión</h1>
-            <p className="subtitle">Acceso al sistema de Maingest</p>
+            <p className="subtitle">Acceso al sistema de Stock Pocket</p>
           </div>
           <ThemeSelector theme={theme} onChange={onThemeChange} />
         </header>

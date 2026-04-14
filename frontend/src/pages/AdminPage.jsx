@@ -86,7 +86,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
   const [auditoriaFilterAccion, setAuditoriaFilterAccion] = useState('')
   const [auditoriaFilterTexto, setAuditoriaFilterTexto] = useState('')
   const [tableViewMode, setTableViewMode] = useState('cards')
-  const role = localStorage.getItem('maingest-role') || 'ADMIN'
+  const role = localStorage.getItem('stock pocket-role') || 'ADMIN'
 
   const sectionsAdmin = [
     { id: 'resumen', label: 'Resumen general' },
@@ -143,7 +143,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     if (!canFetch) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -246,7 +246,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     if (auditoriaData !== null || isLoadingAuditoria) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -311,7 +311,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
 
   const openCreateRole = () => {
     resetRoleForm()
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (token && !empresasData) {
       const headers = {
         Authorization: `Bearer ${token}`,
@@ -345,7 +345,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
         ? String(rol.empresaId)
         : '',
     )
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (token && !empresasData) {
       const headers = {
         Authorization: `Bearer ${token}`,
@@ -377,7 +377,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     setRoleForPermisos(rol)
     setShowRolePermissionsModal(true)
     setPermisoFilterText('')
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -436,7 +436,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     if (!roleFormNombre.trim()) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -499,7 +499,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     if (!roleForPermisos || !roleForPermisos.id || !permiso || !permiso.id) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -580,7 +580,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     if (!objetivo || !objetivo.id) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -636,7 +636,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     if (!objetivo || !objetivo.id) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -708,7 +708,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     if (!empresaFormNombre.trim()) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -769,7 +769,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     if (!objetivo || !objetivo.id) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -822,7 +822,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     if (!usuario) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (token && !rolesData) {
       const headers = {
         Authorization: `Bearer ${token}`,
@@ -873,7 +873,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     setEmpresaAsignarId('')
     setRolAsignarId('')
     setUsuarioEmpresaDirty(false)
-    const tokenEmpresas = localStorage.getItem('maingest-token')
+    const tokenEmpresas = localStorage.getItem('stock pocket-token')
     if (tokenEmpresas && usuario && usuario.id) {
       fetch(`${backendBaseUrl}/api/usuarios/${usuario.id}/empresas`, {
         headers: {
@@ -918,7 +918,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
         return
       }
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -1140,7 +1140,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
       console.log('Usuario inválido o sin ID')
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       console.log('Sin token')
       return
@@ -1213,7 +1213,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
 
   const asignarGlobalSinRol = () => {
     console.log('Iniciando asignarGlobalSinRol')
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       console.log('Sin token')
       return
@@ -1320,7 +1320,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     if (!usuarioForEmpresa || !usuarioForEmpresa.id) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -1518,7 +1518,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     if (!planFormNombre.trim()) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -1576,7 +1576,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
   }
 
   const handleDeletePlan = (plan) => {
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -1602,7 +1602,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
   }
 
   const loadEmpresaSuscripcion = (empresaId) => {
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -1631,7 +1631,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     setSuscripcionFechaFin('')
     setShowAsignarSuscripcionModal(true)
     if (planesData === null) {
-      const token = localStorage.getItem('maingest-token')
+      const token = localStorage.getItem('stock pocket-token')
       if (token) {
         fetch(`${backendBaseUrl}/api/planes-suscripcion`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -1648,7 +1648,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     if (!empresaParaSuscripcion || !suscripcionPlanId) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -1698,7 +1698,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     if (!empresaParaBloqueo) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -1878,7 +1878,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
       <header className="admin-topbar">
         <div className="admin-topbar-brand">
           <div className="admin-topbar-mark" />
-          <span className="admin-topbar-title">Maingest</span>
+          <span className="admin-topbar-title">Stock Pocket</span>
         </div>
         <div className="admin-header-right">
           <Link to="/home" className="theme-button">
@@ -2504,7 +2504,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                     className="theme-button"
                     disabled={isLoadingAuditoria}
                     onClick={() => {
-                      const token = localStorage.getItem('maingest-token')
+                      const token = localStorage.getItem('stock pocket-token')
                       if (!token) {
                         return
                       }

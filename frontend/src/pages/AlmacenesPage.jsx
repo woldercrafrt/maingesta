@@ -80,7 +80,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
   const [formArmarioMeasureMode, setFormArmarioMeasureMode] = useState('metros')
   const [isSavingArmario, setIsSavingArmario] = useState(false)
   const [tableViewMode, setTableViewMode] = useState('cards')
-  const role = localStorage.getItem('maingest-role') || 'ADMIN'
+  const role = localStorage.getItem('stock pocket-role') || 'ADMIN'
   const isGlobalUser = role === 'ADMIN'
   const roleLabel =
     role === 'ADMIN' ? 'Super administrador' : role === 'ADMIN_EMPRESA' ? 'Admin de empresa' : 'Admin de almacén'
@@ -166,7 +166,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
   }, [selectedAlmacenId, almacenes, estructura])
 
   useEffect(() => {
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -214,7 +214,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
       })
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -247,7 +247,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
     if (repisasGlobalData !== null || isLoadingRepisasGlobal) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -278,7 +278,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
     if (repisasGlobalData !== null || isLoadingRepisasGlobal) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -316,7 +316,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
 
   useEffect(() => {
     if (!showCreateItemModal || !formItemEmpresaId) return
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) return
     fetch(`${backendBaseUrl}/api/productos?empresaId=${formItemEmpresaId}&size=1000`, {
       headers: { Authorization: `Bearer ${token}` }
@@ -333,7 +333,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
     if (inventarioData !== null || isLoadingInventario) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -366,7 +366,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
   }, [activeSection, inventarioData, isLoadingInventario])
 
   const handleCreateItem = () => {
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) return
     if (!formItemRepisaId || !formItemNombre || !formItemEstado || !formItemTamanio) return
 
@@ -424,7 +424,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
   const clamp01 = (value) => Math.min(1, Math.max(0, value))
 
   const guardarPosicionArmario = (armarioId, posicion) => {
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return Promise.resolve(null)
     }
@@ -742,7 +742,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
     if (!formNombreAlmacen.trim() || !empresaIdToUse) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -820,7 +820,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
     if (!nombre) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -891,7 +891,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
     if (!almacenToDelete || !almacenToDelete.id) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -938,7 +938,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
     if (!armarioForRepisa || !formRepisaNivel || !formRepisaCapacidad) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -990,7 +990,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
     if (!formArmarioNombre.trim() || !formArmarioAlmacenId) {
       return
     }
-    const token = localStorage.getItem('maingest-token')
+    const token = localStorage.getItem('stock pocket-token')
     if (!token) {
       return
     }
@@ -1143,7 +1143,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
       <header className="admin-topbar">
         <div className="admin-topbar-brand">
           <div className="admin-topbar-mark" />
-          <span className="admin-topbar-title">Maingest</span>
+          <span className="admin-topbar-title">Stock Pocket</span>
         </div>
         <div className="admin-header-right">
           <MobileNavMenu />
