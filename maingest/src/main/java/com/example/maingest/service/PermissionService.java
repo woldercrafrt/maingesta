@@ -15,6 +15,7 @@ import com.example.maingest.repository.PermisoRepository;
 import com.example.maingest.repository.RolPermisoRepository;
 import com.example.maingest.repository.UsuarioRolRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -98,6 +99,7 @@ public class PermissionService {
         return false;
     }
 
+    @Transactional(readOnly = true)
     public List<String> getPermissionAuthorities(Usuario usuario) {
         if (usuario == null) {
             return List.of();

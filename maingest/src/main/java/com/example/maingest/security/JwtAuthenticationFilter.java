@@ -60,8 +60,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (usuarioId != null) {
                 // Si el request trae Bearer token, este debe ser la fuente de verdad.
                 // Esto evita que una sesión OAuth2 (principal != Usuario) bloquee llamadas API con JWT.
-                Usuario usuario = new Usuario();
-                usuario.setId(usuarioId);
+                Optional<Usuario> usuarioOpt = usuarioRepository.findById(usuarioId);
+                if (usuarioOpt.isEmpty()) {
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+                Usuario usuario = usuarioOpt.get();
 
                 List<String> permisos = jwtService.extractPermissions(token);
                 List<SimpleGrantedAuthority> authorities = permisos.stream()

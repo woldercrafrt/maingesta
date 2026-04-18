@@ -39,6 +39,12 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
   const [showEmpresaFormModal, setShowEmpresaFormModal] = useState(false)
   const [empresaToDelete, setEmpresaToDelete] = useState(null)
   const [showDeleteEmpresaModal, setShowDeleteEmpresaModal] = useState(false)
+  const [empresaDeletePreview, setEmpresaDeletePreview] = useState(null)
+  const [isLoadingEmpresaDeletePreview, setIsLoadingEmpresaDeletePreview] = useState(false)
+  const [empresaDeleteUsuariosStrategy, setEmpresaDeleteUsuariosStrategy] = useState('DETACH')
+  const [empresaDeleteMoveEmpresaId, setEmpresaDeleteMoveEmpresaId] = useState('')
+  const [empresaDeleteMoveRolId, setEmpresaDeleteMoveRolId] = useState('')
+  const [isDeletingEmpresa, setIsDeletingEmpresa] = useState(false)
   const [usuarioFilterText, setUsuarioFilterText] = useState('')
   const [usuarioFilterEmpresa, setUsuarioFilterEmpresa] = useState('')
   const [usuarioFilterRol, setUsuarioFilterRol] = useState('')
@@ -58,6 +64,14 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
   const [usuarioFormClave, setUsuarioFormClave] = useState('')
   const [usuarioFormEstado, setUsuarioFormEstado] = useState('ACTIVO')
   const [usuarioEmpresaDirty, setUsuarioEmpresaDirty] = useState(false)
+  const [usuarioToDelete, setUsuarioToDelete] = useState(null)
+  const [showDeleteUsuarioModal, setShowDeleteUsuarioModal] = useState(false)
+  const [usuarioDeletePreview, setUsuarioDeletePreview] = useState(null)
+  const [isLoadingUsuarioDeletePreview, setIsLoadingUsuarioDeletePreview] = useState(false)
+  const [usuarioDeleteMovimientosStrategy, setUsuarioDeleteMovimientosStrategy] = useState('DELETE')
+  const [usuarioDeleteMovimientosNuevoUsuarioId, setUsuarioDeleteMovimientosNuevoUsuarioId] = useState('')
+  const [usuarioDeleteForceLastAdmin, setUsuarioDeleteForceLastAdmin] = useState(false)
+  const [isDeletingUsuario, setIsDeletingUsuario] = useState(false)
   const [planesData, setPlanesData] = useState(null)
   const [showPlanFormModal, setShowPlanFormModal] = useState(false)
   const [editingPlan, setEditingPlan] = useState(null)
@@ -763,7 +777,38 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
 
   const openDeleteEmpresa = (empresa) => {
     setEmpresaToDelete(empresa)
+    setEmpresaDeletePreview(null)
+    setEmpresaDeleteUsuariosStrategy('DETACH')
+    setEmpresaDeleteMoveEmpresaId('')
+    setEmpresaDeleteMoveRolId('')
     setShowDeleteEmpresaModal(true)
+
+    const token = localStorage.getItem('stock pocket-token')
+    if (!token || !empresa || !empresa.id) {
+      return
+    }
+    setIsLoadingEmpresaDeletePreview(true)
+    fetch(`${backendBaseUrl}/api/admin/empresas/${empresa.id}/delete-preview`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('ERROR_PREVIEW_EMPRESA')
+        }
+        return response.json()
+      })
+      .then((json) => {
+        setEmpresaDeletePreview(json)
+        setError(null)
+      })
+      .catch(() => {
+        setEmpresaDeletePreview(null)
+      })
+      .finally(() => {
+        setIsLoadingEmpresaDeletePreview(false)
+      })
   }
 
   const handleDeleteEmpresa = () => {
@@ -775,12 +820,33 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     if (!token) {
       return
     }
+    if (isDeletingEmpresa) {
+      return
+    }
+    setIsDeletingEmpresa(true)
     const headers = {
       Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
     }
-    fetch(`${backendBaseUrl}/api/empresas/${objetivo.id}`, {
-      method: 'DELETE',
+    const payload = {
+      usuariosStrategy: empresaDeleteUsuariosStrategy,
+      nuevoEmpresaId: empresaDeleteUsuariosStrategy === 'MOVE' && empresaDeleteMoveEmpresaId
+        ? Number(empresaDeleteMoveEmpresaId)
+        : null,
+      nuevoRolId: empresaDeleteUsuariosStrategy === 'MOVE' && empresaDeleteMoveRolId
+        ? Number(empresaDeleteMoveRolId)
+        : null,
+    }
+    if (empresaDeleteUsuariosStrategy === 'MOVE' && !payload.nuevoEmpresaId) {
+      setError('Debes seleccionar la empresa destino para mover los usuarios.')
+      setIsDeletingEmpresa(false)
+      return
+    }
+
+    fetch(`${backendBaseUrl}/api/admin/empresas/${objetivo.id}/delete`, {
+      method: 'POST',
       headers,
+      body: JSON.stringify(payload),
     })
       .then((response) => {
         if (!response.ok && response.status !== 404) {
@@ -794,10 +860,124 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
         })
         setEmpresaToDelete(null)
         setShowDeleteEmpresaModal(false)
+        setEmpresaDeletePreview(null)
         setError(null)
       })
       .catch(() => {
         setError('No se pudo eliminar la empresa.')
+      })
+      .finally(() => {
+        setIsDeletingEmpresa(false)
+      })
+  }
+
+  const openDeleteUsuario = (usuario) => {
+    if (!usuario || !usuario.id) {
+      return
+    }
+    setUsuarioToDelete(usuario)
+    setUsuarioDeletePreview(null)
+    setUsuarioDeleteMovimientosStrategy('DELETE')
+    setUsuarioDeleteMovimientosNuevoUsuarioId('')
+    setUsuarioDeleteForceLastAdmin(false)
+    setShowDeleteUsuarioModal(true)
+
+    const token = localStorage.getItem('stock pocket-token')
+    if (!token) {
+      return
+    }
+    setIsLoadingUsuarioDeletePreview(true)
+    fetch(`${backendBaseUrl}/api/admin/usuarios/${usuario.id}/delete-preview`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('ERROR_PREVIEW_USUARIO')
+        }
+        return response.json()
+      })
+      .then((json) => {
+        setUsuarioDeletePreview(json)
+        setError(null)
+      })
+      .catch(() => {
+        setUsuarioDeletePreview(null)
+      })
+      .finally(() => {
+        setIsLoadingUsuarioDeletePreview(false)
+      })
+  }
+
+  const handleDeleteUsuario = () => {
+    const objetivo = usuarioToDelete
+    if (!objetivo || !objetivo.id) {
+      return
+    }
+    const token = localStorage.getItem('stock pocket-token')
+    if (!token) {
+      return
+    }
+    if (isDeletingUsuario) {
+      return
+    }
+    setIsDeletingUsuario(true)
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    }
+
+    const payload = {
+      movimientosStrategy: usuarioDeleteMovimientosStrategy,
+      movimientosNuevoUsuarioId:
+        usuarioDeleteMovimientosStrategy === 'REASSIGN' && usuarioDeleteMovimientosNuevoUsuarioId
+          ? Number(usuarioDeleteMovimientosNuevoUsuarioId)
+          : null,
+      forceLastAdmin: usuarioDeleteForceLastAdmin,
+    }
+
+    if (usuarioDeletePreview && usuarioDeletePreview.movimientos > 0) {
+      if (payload.movimientosStrategy === 'REASSIGN' && !payload.movimientosNuevoUsuarioId) {
+        setError('Debes seleccionar el usuario destino para reasignar los movimientos.')
+        setIsDeletingUsuario(false)
+        return
+      }
+    }
+
+    fetch(`${backendBaseUrl}/api/admin/usuarios/${objetivo.id}/delete`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    })
+      .then((response) => {
+        if (response.status === 409) {
+          throw new Error('CONFLICT_LAST_ADMIN')
+        }
+        if (!response.ok && response.status !== 404) {
+          throw new Error('ERROR_DELETE_USUARIO')
+        }
+        setUsuariosData((anteriores) => {
+          if (!anteriores) {
+            return anteriores
+          }
+          return anteriores.filter((u) => u && u.id !== objetivo.id)
+        })
+        setUsuarioToDelete(null)
+        setUsuarioDeletePreview(null)
+        setShowDeleteUsuarioModal(false)
+        setError(null)
+      })
+      .catch((err) => {
+        if (err && err.message === 'CONFLICT_LAST_ADMIN') {
+          setError('Este usuario es el último ADMIN de su empresa. Marca la casilla para forzar.')
+          return
+        }
+        setError('No se pudo eliminar el usuario.')
+      })
+      .finally(() => {
+        setIsDeletingUsuario(false)
       })
   }
 
@@ -2491,6 +2671,13 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                                 >
                                   Editar
                                 </button>
+                                <button
+                                  type="button"
+                                  className="theme-button"
+                                  onClick={() => openDeleteUsuario(usuario)}
+                                >
+                                  Eliminar
+                                </button>
                               </div>
                             </div>
                           </td>
@@ -3295,6 +3482,82 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
             <p className="modal-text">
               ¿Seguro que quieres eliminar la empresa "{empresaToDelete.nombre}"? Esta acción no se puede deshacer.
             </p>
+            {isLoadingEmpresaDeletePreview && (
+              <p className="modal-text">Cargando dependencias…</p>
+            )}
+            {!isLoadingEmpresaDeletePreview && empresaDeletePreview && (
+              <div className="modal-form">
+                <div className="modal-text" style={{ fontSize: '0.9em', opacity: 0.8 }}>
+                  Almacenes: {empresaDeletePreview.almacenes}
+                  {' · '}Armarios: {empresaDeletePreview.armarios}
+                  {' · '}Repisas: {empresaDeletePreview.repisas}
+                  {' · '}Items: {empresaDeletePreview.items}
+                </div>
+                <div className="modal-text" style={{ fontSize: '0.9em', opacity: 0.8 }}>
+                  Productos: {empresaDeletePreview.productos}
+                  {' · '}Movimientos: {empresaDeletePreview.movimientos}
+                </div>
+                <div className="modal-text" style={{ fontSize: '0.9em', opacity: 0.8 }}>
+                  Usuarios: {empresaDeletePreview.usuarios}
+                  {' · '}Roles de la empresa: {empresaDeletePreview.roles}
+                </div>
+                <div className="modal-text" style={{ fontSize: '0.9em', opacity: 0.8 }}>
+                  Suscripciones: {empresaDeletePreview.suscripciones}
+                  {' · '}Pagos Wompi: {empresaDeletePreview.pagosWompi}
+                </div>
+
+                <div style={{ marginTop: '0.75rem' }}>
+                  <div className="modal-text" style={{ fontWeight: 600 }}>
+                    Usuarios asociados
+                  </div>
+                  <select
+                    value={empresaDeleteUsuariosStrategy}
+                    onChange={(event) => {
+                      const val = event.target.value
+                      setEmpresaDeleteUsuariosStrategy(val)
+                      if (val !== 'MOVE') {
+                        setEmpresaDeleteMoveEmpresaId('')
+                        setEmpresaDeleteMoveRolId('')
+                      }
+                    }}
+                  >
+                    <option value="DETACH">Dejar usuarios sin empresa (Global)</option>
+                    <option value="MOVE">Mover usuarios a otra empresa</option>
+                    <option value="DELETE_USERS">Eliminar usuarios (incluye sus movimientos)</option>
+                  </select>
+                  {empresaDeleteUsuariosStrategy === 'MOVE' && (
+                    <>
+                      <select
+                        value={empresaDeleteMoveEmpresaId}
+                        onChange={(event) => setEmpresaDeleteMoveEmpresaId(event.target.value)}
+                      >
+                        <option value="">Selecciona empresa destino</option>
+                        {(empresasData || [])
+                          .filter((e) => e && e.id && e.id !== empresaToDelete.id)
+                          .map((e) => (
+                            <option key={e.id} value={e.id}>
+                              {e.nombre}
+                            </option>
+                          ))}
+                      </select>
+                      <select
+                        value={empresaDeleteMoveRolId}
+                        onChange={(event) => setEmpresaDeleteMoveRolId(event.target.value)}
+                      >
+                        <option value="">Rol destino (opcional)</option>
+                        {(rolesData || [])
+                          .filter((r) => r && r.id)
+                          .map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.nombre}
+                            </option>
+                          ))}
+                      </select>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="modal-actions">
               <button
                 type="button"
@@ -3302,7 +3565,9 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                 onClick={() => {
                   setEmpresaToDelete(null)
                   setShowDeleteEmpresaModal(false)
+                  setEmpresaDeletePreview(null)
                 }}
+                disabled={isDeletingEmpresa}
               >
                 Cancelar
               </button>
@@ -3310,8 +3575,100 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                 type="button"
                 className="theme-button"
                 onClick={handleDeleteEmpresa}
+                disabled={isDeletingEmpresa}
               >
-                Eliminar
+                {isDeletingEmpresa ? 'Eliminando…' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showDeleteUsuarioModal && usuarioToDelete && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <h3 className="modal-title">Eliminar usuario</h3>
+            <p className="modal-text">
+              ¿Seguro que quieres eliminar el usuario "{usuarioToDelete.correo}"?
+            </p>
+            {isLoadingUsuarioDeletePreview && (
+              <p className="modal-text">Cargando dependencias…</p>
+            )}
+            {!isLoadingUsuarioDeletePreview && usuarioDeletePreview && (
+              <div className="modal-form">
+                <div className="modal-text" style={{ fontSize: '0.9em', opacity: 0.8 }}>
+                  Movimientos: {usuarioDeletePreview.movimientos}
+                  {' · '}Roles globales: {usuarioDeletePreview.rolesGlobales}
+                  {' · '}Empresas: {usuarioDeletePreview.empresas}
+                  {' · '}Almacenes: {usuarioDeletePreview.almacenes}
+                </div>
+                {usuarioDeletePreview.lastAdminEmpresa && (
+                  <label className="modal-text" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={usuarioDeleteForceLastAdmin}
+                      onChange={(event) => setUsuarioDeleteForceLastAdmin(event.target.checked)}
+                    />
+                    Forzar eliminación aunque sea el último ADMIN de la empresa
+                  </label>
+                )}
+
+                {usuarioDeletePreview.movimientos > 0 && (
+                  <>
+                    <div className="modal-text" style={{ fontWeight: 600, marginTop: '0.75rem' }}>
+                      Movimientos asociados
+                    </div>
+                    <select
+                      value={usuarioDeleteMovimientosStrategy}
+                      onChange={(event) => {
+                        const val = event.target.value
+                        setUsuarioDeleteMovimientosStrategy(val)
+                        if (val !== 'REASSIGN') {
+                          setUsuarioDeleteMovimientosNuevoUsuarioId('')
+                        }
+                      }}
+                    >
+                      <option value="DELETE">Eliminar movimientos</option>
+                      <option value="REASSIGN">Reasignar movimientos a otro usuario</option>
+                    </select>
+                    {usuarioDeleteMovimientosStrategy === 'REASSIGN' && (
+                      <select
+                        value={usuarioDeleteMovimientosNuevoUsuarioId}
+                        onChange={(event) => setUsuarioDeleteMovimientosNuevoUsuarioId(event.target.value)}
+                      >
+                        <option value="">Selecciona usuario destino</option>
+                        {(usuariosData || [])
+                          .filter((u) => u && u.id && u.id !== usuarioToDelete.id)
+                          .map((u) => (
+                            <option key={u.id} value={u.id}>
+                              {u.correo}
+                            </option>
+                          ))}
+                      </select>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="theme-button"
+                onClick={() => {
+                  setUsuarioToDelete(null)
+                  setShowDeleteUsuarioModal(false)
+                  setUsuarioDeletePreview(null)
+                }}
+                disabled={isDeletingUsuario}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="theme-button"
+                onClick={handleDeleteUsuario}
+                disabled={isDeletingUsuario}
+              >
+                {isDeletingUsuario ? 'Eliminando…' : 'Eliminar'}
               </button>
             </div>
           </div>

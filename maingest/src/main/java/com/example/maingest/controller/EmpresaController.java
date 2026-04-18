@@ -540,6 +540,73 @@ public class EmpresaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(suscripcionToDto(guardada));
     }
 
+    public record EmpresaSuscripcionGratisRequest(Long planId) {
+    }
+
+    @PostMapping("/{id}/suscripcion-gratis")
+    @Transactional
+    public ResponseEntity<EmpresaSuscripcionDto> activarSuscripcionGratis(
+            @PathVariable("id") Long id,
+            @RequestBody EmpresaSuscripcionGratisRequest dto
+    ) {
+        Usuario actor = currentUsuario();
+        if (actor == null) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        Optional<Empresa> empresaOpt = empresaRepository.findById(id);
+        if (empresaOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        Empresa empresa = empresaOpt.get();
+        if (!accessControlService.canManageEmpresa(actor, empresa)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        if (dto == null || dto.planId() == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        Optional<PlanSuscripcion> planOpt = planSuscripcionRepository.findById(dto.planId());
+        if (planOpt.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        PlanSuscripcion plan = planOpt.get();
+        if (!Boolean.TRUE.equals(plan.getActivo())) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        boolean esPago = (plan.getPrecioMensualCents() != null && plan.getPrecioMensualCents() > 0)
+                || (plan.getPrecioAnualCents() != null && plan.getPrecioAnualCents() > 0);
+        if (esPago) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        Optional<EmpresaSuscripcion> activaOpt =
+                empresaSuscripcionRepository.findFirstByEmpresaAndEstadoOrderByCreatedAtDesc(empresa, "ACTIVA");
+        activaOpt.ifPresent(activa -> {
+            activa.setEstado("REEMPLAZADA");
+            empresaSuscripcionRepository.save(activa);
+        });
+
+        EmpresaSuscripcion nueva = new EmpresaSuscripcion();
+        nueva.setEmpresa(empresa);
+        nueva.setPlan(plan);
+        nueva.setFechaInicio(LocalDate.now());
+        nueva.setFechaFin(null);
+        nueva.setEstado("ACTIVA");
+        nueva.setAutoRenovar(false);
+        EmpresaSuscripcion guardada = empresaSuscripcionRepository.save(nueva);
+
+        auditoriaService.registrar(
+                actor,
+                "EMPRESA_ACTIVAR_PLAN_GRATIS",
+                "EMPRESA",
+                empresa.getId(),
+                "Activó plan gratis \"" + plan.getNombre() + "\" en empresa \"" + empresa.getNombre() + "\"",
+                null
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(suscripcionToDto(guardada));
+    }
+
     @PostMapping("/{id}/bloqueo")
     public ResponseEntity<EmpresaDto> bloquearDesbloquear(
             @PathVariable("id") Long id,

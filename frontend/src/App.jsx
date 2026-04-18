@@ -12,6 +12,7 @@ import PricingPage from './pages/PricingPage'
 import CatalogoPage from './pages/CatalogoPage'
 import ProductoDetailPage from './pages/ProductoDetailPage'
 import KardexPage from './pages/KardexPage'
+import CrearEmpresaPage from './pages/CrearEmpresaPage'
 import { AuthProvider, useAuth } from './context/AuthContext'
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -98,6 +99,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <AlmacenesPage theme={theme} onThemeChange={handleThemeChange} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/crear-empresa"
+            element={
+              <ProtectedRoute>
+                <CrearEmpresaPage theme={theme} onThemeChange={handleThemeChange} />
               </ProtectedRoute>
             }
           />

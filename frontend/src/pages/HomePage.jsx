@@ -1,13 +1,43 @@
-import React from 'react'
-import { Link } from 'react-router-dom'
+import React, { useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import MobileNavMenu from '../components/MobileNavMenu'
 import ThemeSelector from '../components/ThemeSelector'
 import UserMenu from '../components/UserMenu'
 import LocalNavBar from '../components/LocalNavBar'
 import { useAuth } from '../context/AuthContext'
+import { backendBaseUrl } from '../utils/config'
 
 const HomePage = ({ theme, onThemeChange }) => {
-  const { role, canView } = useAuth()
+  const navigate = useNavigate()
+  const { role, canView, token, user, logout } = useAuth()
+
+  useEffect(() => {
+    if (!token || !user || !user.id) {
+      return
+    }
+    if (role === 'ADMIN') {
+      return
+    }
+
+    const headers = { Authorization: `Bearer ${token}` }
+    fetch(`${backendBaseUrl}/api/usuarios/${user.id}/empresas`, { headers })
+      .then((r) => {
+        if (r.status === 401) {
+          logout()
+          throw new Error('UNAUTHORIZED')
+        }
+        if (!r.ok) {
+          throw new Error('ERROR')
+        }
+        return r.json()
+      })
+      .then((lista) => {
+        if (Array.isArray(lista) && lista.length === 0) {
+          navigate('/crear-empresa', { replace: true })
+        }
+      })
+      .catch(() => {})
+  }, [token, user, role, navigate, logout])
   
   // Determinar qué botones mostrar
   // ADMIN_EMPRESA ve todo lo de su empresa por defecto

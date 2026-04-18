@@ -87,9 +87,50 @@ const PricingPage = ({ theme, onThemeChange }) => {
     if (!token) {
       return
     }
+    const plan =
+      planes && selectedPlanId
+        ? planes.find((p) => p.id === Number(selectedPlanId))
+        : null
+
+    const duracion = Number(duracionMeses) || 1
+    const precioCents = plan
+      ? (duracion >= 12
+        ? (plan.precioAnualCents != null ? Number(plan.precioAnualCents) : null)
+        : (plan.precioMensualCents != null ? Number(plan.precioMensualCents) : null))
+      : null
+    const esGratis = precioCents != null && Number.isFinite(precioCents) && precioCents <= 0
+
     setIsSaving(true)
     setError(null)
     setSuccess(null)
+
+    if (esGratis) {
+      fetch(`${backendBaseUrl}/api/empresas/${empresaId}/suscripcion-gratis`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ planId: Number(selectedPlanId) }),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error('ERROR_ACTIVAR_GRATIS')
+          }
+          return response.json()
+        })
+        .then((json) => {
+          setSuccess(`Plan "${json?.planNombre || 'gratis'}" activado.`)
+          window.location.href = '/suscripcion'
+        })
+        .catch(() => {
+          setError('No se pudo activar el plan gratis. Inténtalo de nuevo.')
+        })
+        .finally(() => {
+          setIsSaving(false)
+        })
+      return
+    }
 
     fetch(`${backendBaseUrl}/api/pagos/wompi/checkout`, {
       method: 'POST',
@@ -100,7 +141,7 @@ const PricingPage = ({ theme, onThemeChange }) => {
       body: JSON.stringify({
         empresaId: Number(empresaId),
         planId: Number(selectedPlanId),
-        duracionMeses: Number(duracionMeses) || 1,
+        duracionMeses: duracion,
       }),
     })
       .then((response) => {
@@ -127,6 +168,17 @@ const PricingPage = ({ theme, onThemeChange }) => {
     planes && selectedPlanId
       ? planes.find((p) => p.id === Number(selectedPlanId))
       : null
+
+  const planPrecioSeleccionadoCents = (() => {
+    if (!planSeleccionado) return null
+    if (duracionMeses === '12') {
+      return planSeleccionado.precioAnualCents != null ? Number(planSeleccionado.precioAnualCents) : null
+    }
+    return planSeleccionado.precioMensualCents != null ? Number(planSeleccionado.precioMensualCents) : null
+  })()
+
+  const planSeleccionadoEsGratis =
+    planPrecioSeleccionadoCents != null && Number.isFinite(planPrecioSeleccionadoCents) && planPrecioSeleccionadoCents <= 0
 
   const parseDate = (value) => {
     if (!value) return null
@@ -484,7 +536,9 @@ const PricingPage = ({ theme, onThemeChange }) => {
                   <div className="cp-checkout-title">Checkout</div>
                   <div className="cp-checkout-sub">
                     {selectedPlanId
-                      ? 'Confirma la duración y continúa al checkout de Wompi.'
+                      ? planSeleccionadoEsGratis
+                        ? 'Este plan es gratis. Se activará de inmediato.'
+                        : 'Confirma la duración y continúa al checkout de Wompi.'
                       : 'Selecciona un plan para continuar.'}
                   </div>
 
@@ -507,7 +561,13 @@ const PricingPage = ({ theme, onThemeChange }) => {
                       onClick={handleComprar}
                       disabled={isSaving || !selectedPlanId}
                     >
-                      {isSaving ? 'Abriendo checkout…' : 'Pagar con Wompi'}
+                      {isSaving
+                        ? planSeleccionadoEsGratis
+                          ? 'Activando…'
+                          : 'Abriendo checkout…'
+                        : planSeleccionadoEsGratis
+                        ? 'Activar plan gratis'
+                        : 'Pagar con Wompi'}
                     </button>
                   </div>
                 </div>

@@ -1,11 +1,16 @@
 package com.example.maingest.repository;
 
 import com.example.maingest.domain.MovimientoInventario;
+import com.example.maingest.domain.Empresa;
+import com.example.maingest.domain.Usuario;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import org.springframework.transaction.annotation.Transactional;
 
 public interface MovimientoInventarioRepository extends JpaRepository<MovimientoInventario, Long> {
 
@@ -45,4 +50,18 @@ public interface MovimientoInventarioRepository extends JpaRepository<Movimiento
 
     @Query("SELECT COUNT(m) FROM MovimientoInventario m WHERE m.empresa.id = :empresaId")
     long countByEmpresaId(@Param("empresaId") Long empresaId);
+
+    @Query("SELECT COUNT(m) FROM MovimientoInventario m WHERE m.usuario.id = :usuarioId")
+    long countByUsuarioId(@Param("usuarioId") Long usuarioId);
+
+    @Transactional
+    void deleteByEmpresa(Empresa empresa);
+
+    @Transactional
+    void deleteByUsuario(Usuario usuario);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE MovimientoInventario m SET m.usuario = :nuevoUsuario WHERE m.usuario.id = :usuarioId")
+    int reasignarUsuario(@Param("usuarioId") Long usuarioId, @Param("nuevoUsuario") Usuario nuevoUsuario);
 }
