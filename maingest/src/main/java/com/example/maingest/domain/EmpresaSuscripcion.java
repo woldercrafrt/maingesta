@@ -39,7 +39,10 @@ public class EmpresaSuscripcion {
     @Column(nullable = false)
     private String estado = "ACTIVA";
 
-    @Column(updatable = false)
+    @Column(name = "auto_renovar", nullable = false)
+    private Boolean autoRenovar = false;
+
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     public EmpresaSuscripcion() {
@@ -92,6 +95,14 @@ public class EmpresaSuscripcion {
 
     public void setEstado(String estado) {
         this.estado = estado;
+    }
+
+    public Boolean getAutoRenovar() {
+        return autoRenovar;
+    }
+
+    public void setAutoRenovar(Boolean autoRenovar) {
+        this.autoRenovar = autoRenovar;
     }
 
     public LocalDateTime getCreatedAt() {

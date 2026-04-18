@@ -81,9 +81,30 @@ public class AccessControlService {
         if (rol == null || rol.getNombre() == null) {
             return null;
         }
-        String nombre = rol.getNombre().toUpperCase(Locale.ROOT);
+        String nombre = rol.getNombre().trim().toUpperCase(Locale.ROOT);
+        String normalized = nombre
+                .replace('-', '_')
+                .replace(' ', '_');
+
+        if ("ADMIN".equals(normalized)
+                || "ADMINISTRADOR".equals(normalized)
+                || "OWNER".equals(normalized)
+                || "PROPIETARIO".equals(normalized)
+                || "DUENO".equals(normalized)
+                || "DUEÑO".equals(normalized)) {
+            return RoleLevel.ADMIN_EMPRESA;
+        }
+        if (normalized.contains("ADMIN") && normalized.contains("ALMACEN")) {
+            return RoleLevel.ADMIN_ALMACEN;
+        }
+        if (normalized.contains("ADMIN") && normalized.contains("EMPRESA")) {
+            return RoleLevel.ADMIN_EMPRESA;
+        }
+        if ("USER".equals(normalized) || "USUARIO".equals(normalized)) {
+            return RoleLevel.OPERADOR;
+        }
         try {
-            return RoleLevel.valueOf(nombre);
+            return RoleLevel.valueOf(normalized);
         } catch (IllegalArgumentException e) {
             return null;
         }

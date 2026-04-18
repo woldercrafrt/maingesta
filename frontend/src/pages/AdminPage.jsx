@@ -63,6 +63,8 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
   const [editingPlan, setEditingPlan] = useState(null)
   const [planFormNombre, setPlanFormNombre] = useState('')
   const [planFormDescripcion, setPlanFormDescripcion] = useState('')
+  const [planFormPrecioMensualCents, setPlanFormPrecioMensualCents] = useState('')
+  const [planFormPrecioAnualCents, setPlanFormPrecioAnualCents] = useState('')
   const [planFormLimAlmacenes, setPlanFormLimAlmacenes] = useState('')
   const [planFormLimArmarios, setPlanFormLimArmarios] = useState('')
   const [planFormLimRepisas, setPlanFormLimRepisas] = useState('')
@@ -1488,6 +1490,8 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     setEditingPlan(null)
     setPlanFormNombre('')
     setPlanFormDescripcion('')
+    setPlanFormPrecioMensualCents('')
+    setPlanFormPrecioAnualCents('')
     setPlanFormLimAlmacenes('')
     setPlanFormLimArmarios('')
     setPlanFormLimRepisas('')
@@ -1500,6 +1504,8 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     setEditingPlan(plan)
     setPlanFormNombre(plan.nombre || '')
     setPlanFormDescripcion(plan.descripcion || '')
+    setPlanFormPrecioMensualCents(plan.precioMensualCents != null ? String(Number(plan.precioMensualCents) / 100) : '')
+    setPlanFormPrecioAnualCents(plan.precioAnualCents != null ? String(Number(plan.precioAnualCents) / 100) : '')
     setPlanFormLimAlmacenes(plan.limiteAlmacenes != null ? String(plan.limiteAlmacenes) : '')
     setPlanFormLimArmarios(plan.limiteArmarios != null ? String(plan.limiteArmarios) : '')
     setPlanFormLimRepisas(plan.limiteRepisas != null ? String(plan.limiteRepisas) : '')
@@ -1530,6 +1536,8 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
     const payload = {
       nombre: planFormNombre.trim(),
       descripcion: planFormDescripcion.trim(),
+      precioMensualCents: planFormPrecioMensualCents ? Math.round(Number(planFormPrecioMensualCents) * 100) : null,
+      precioAnualCents: planFormPrecioAnualCents ? Math.round(Number(planFormPrecioAnualCents) * 100) : null,
       limiteAlmacenes: planFormLimAlmacenes ? Number(planFormLimAlmacenes) : null,
       limiteArmarios: planFormLimArmarios ? Number(planFormLimArmarios) : null,
       limiteRepisas: planFormLimRepisas ? Number(planFormLimRepisas) : null,
@@ -2278,6 +2286,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                     <tr>
                       <th>Nombre</th>
                       <th>Descripción</th>
+                      <th>Precio</th>
                       <th>Límites</th>
                       <th>Acciones</th>
                     </tr>
@@ -2309,6 +2318,26 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                         if (plan.limiteItems != null) limites.push(`${plan.limiteItems} items`)
                         if (plan.limiteUsuarios != null) limites.push(`${plan.limiteUsuarios} usuarios`)
                         const limitesLabel = limites.length > 0 ? limites.join(' · ') : 'Ilimitado'
+
+                        const formatCopFromCents = (cents) => {
+                          if (cents == null) return null
+                          const pesos = Number(cents) / 100
+                          if (!Number.isFinite(pesos)) return null
+                          return new Intl.NumberFormat('es-CO', {
+                            style: 'currency',
+                            currency: 'COP',
+                            maximumFractionDigits: 0,
+                          }).format(pesos)
+                        }
+                        const mensual = formatCopFromCents(plan.precioMensualCents)
+                        const anual = formatCopFromCents(plan.precioAnualCents)
+                        const precioLabel = mensual && anual
+                          ? `${mensual} / mes · ${anual} / año`
+                          : mensual
+                            ? `${mensual} / mes`
+                            : anual
+                              ? `${anual} / año`
+                              : '—'
                         return (
                           <tr key={plan.id}>
                             <td data-label="Nombre">
@@ -2320,6 +2349,7 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                               )}
                             </td>
                             <td data-label="Descripción">{plan.descripcion || '—'}</td>
+                            <td data-label="Precio" style={{ fontSize: '0.9em' }}>{precioLabel}</td>
                             <td data-label="Límites" style={{ fontSize: '0.9em' }}>{limitesLabel}</td>
                             <td data-label="Acciones">
                               <div className="acciones-buttons">
@@ -3310,6 +3340,20 @@ const AdminPage = ({ theme, onThemeChange, mode = 'admin' }) => {
                 placeholder="Descripción"
                 value={planFormDescripcion}
                 onChange={(event) => setPlanFormDescripcion(event.target.value)}
+              />
+              <input
+                type="number"
+                placeholder="Precio mensual (COP)"
+                min="0"
+                value={planFormPrecioMensualCents}
+                onChange={(event) => setPlanFormPrecioMensualCents(event.target.value)}
+              />
+              <input
+                type="number"
+                placeholder="Precio anual (COP)"
+                min="0"
+                value={planFormPrecioAnualCents}
+                onChange={(event) => setPlanFormPrecioAnualCents(event.target.value)}
               />
               <input
                 type="number"

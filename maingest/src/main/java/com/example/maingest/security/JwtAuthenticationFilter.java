@@ -9,7 +9,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -58,13 +57,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         try {
             Long usuarioId = jwtService.extractUsuarioId(token);
-            var existingAuth = SecurityContextHolder.getContext().getAuthentication();
-            boolean canSetAuth = existingAuth == null || existingAuth instanceof AnonymousAuthenticationToken;
-            if (usuarioId != null && canSetAuth) {
-                // Crear un usuario simplificado con solo los datos necesarios
+            if (usuarioId != null) {
+                // Si el request trae Bearer token, este debe ser la fuente de verdad.
+                // Esto evita que una sesión OAuth2 (principal != Usuario) bloquee llamadas API con JWT.
                 Usuario usuario = new Usuario();
                 usuario.setId(usuarioId);
-                
+
                 List<String> permisos = jwtService.extractPermissions(token);
                 List<SimpleGrantedAuthority> authorities = permisos.stream()
                         .map(SimpleGrantedAuthority::new)

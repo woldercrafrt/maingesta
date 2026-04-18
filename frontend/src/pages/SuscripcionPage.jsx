@@ -7,12 +7,10 @@ import LocalNavBar from '../components/LocalNavBar'
 import { backendBaseUrl } from '../utils/config'
 
 const SuscripcionPage = ({ theme, onThemeChange }) => {
-  const [planes, setPlanes] = useState(null)
   const [suscripcionActual, setSuscripcionActual] = useState(null)
+  const [usage, setUsage] = useState(null)
   const [empresaId, setEmpresaId] = useState(null)
   const [empresaNombre, setEmpresaNombre] = useState('')
-  const [selectedPlanId, setSelectedPlanId] = useState('')
-  const [duracionMeses, setDuracionMeses] = useState('1')
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -24,6 +22,63 @@ const SuscripcionPage = ({ theme, onThemeChange }) => {
       return
     }
     const headers = { Authorization: `Bearer ${token}` }
+
+    const wompiTxId = new URLSearchParams(window.location.search).get('id')
+    const confirmarPagoSiAplica = (empresaIdValue) => {
+      if (!wompiTxId) {
+        return Promise.resolve(null)
+      }
+      setIsSaving(true)
+      return fetch(`${backendBaseUrl}/api/pagos/wompi/confirmar`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ transactionId: wompiTxId }),
+      })
+        .then((r) => {
+          if (!r.ok) {
+            throw new Error('ERROR_CONFIRMAR')
+          }
+          return r.json()
+        })
+        .then((json) => {
+          if (json && json.estado === 'APROBADA') {
+            setSuccess('Pago aprobado. Suscripción activada.')
+          } else if (json && json.estado === 'PENDIENTE') {
+            setError('El pago aún está pendiente. Inténtalo de nuevo en unos segundos.')
+          } else if (json && json.estado === 'RECHAZADA') {
+            setError('El pago fue rechazado.')
+          } else if (json && json.estado === 'ANULADA') {
+            setError('El pago fue anulado.')
+          } else if (json && json.estado === 'ERROR') {
+            setError('Ocurrió un error al procesar el pago.')
+          } else {
+            setError('No se pudo confirmar el pago.')
+          }
+          if (empresaIdValue) {
+            return fetch(`${backendBaseUrl}/api/empresas/${empresaIdValue}/suscripcion`, { headers })
+              .then((r) => {
+                if (r.status === 204) return null
+                if (!r.ok) return null
+                return r.json()
+              })
+              .then((data) => {
+                setSuscripcionActual(data)
+              })
+              .catch(() => {})
+          }
+          return null
+        })
+        .catch(() => {
+          setError('No se pudo confirmar el pago. Inténtalo de nuevo.')
+        })
+        .finally(() => {
+          window.history.replaceState(null, '', window.location.pathname)
+          setIsSaving(false)
+        })
+    }
 
     fetch(`${backendBaseUrl}/api/empresas`, { headers })
       .then((r) => {
@@ -46,6 +101,19 @@ const SuscripcionPage = ({ theme, onThemeChange }) => {
               setSuscripcionActual(data)
             })
             .catch(() => {})
+            .finally(() => {
+              confirmarPagoSiAplica(emp.id)
+            })
+
+          fetch(`${backendBaseUrl}/api/empresas/${emp.id}/usage`, { headers })
+            .then((r) => {
+              if (!r.ok) return null
+              return r.json()
+            })
+            .then((data) => {
+              setUsage(data)
+            })
+            .catch(() => {})
         }
       })
       .catch(() => {
@@ -54,77 +122,103 @@ const SuscripcionPage = ({ theme, onThemeChange }) => {
       .finally(() => {
         setIsLoading(false)
       })
-
-    fetch(`${backendBaseUrl}/api/empresas/planes-disponibles`, { headers })
-      .then((r) => {
-        if (!r.ok) throw new Error()
-        return r.json()
-      })
-      .then((data) => {
-        setPlanes(data || [])
-      })
-      .catch(() => {
-        setError('No se pudo cargar los planes disponibles.')
-      })
   }, [])
 
-  const handleComprar = () => {
-    if (!empresaId || !selectedPlanId) {
-      return
-    }
-    const token = localStorage.getItem('stock pocket-token')
-    if (!token) {
-      return
-    }
-    setIsSaving(true)
-    setError(null)
-    setSuccess(null)
-
-    const hoy = new Date()
-    const fechaInicio = hoy.toISOString().split('T')[0]
-    const meses = Number(duracionMeses) || 1
-    const fin = new Date(hoy)
-    fin.setMonth(fin.getMonth() + meses)
-    const fechaFin = fin.toISOString().split('T')[0]
-
-    fetch(`${backendBaseUrl}/api/empresas/${empresaId}/suscripciones`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        planId: Number(selectedPlanId),
-        fechaInicio,
-        fechaFin,
-      }),
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error('Error al contratar suscripción')
-        }
-        return response.json()
-      })
-      .then((data) => {
-        setSuscripcionActual(data)
-        setSuccess('Suscripción contratada correctamente.')
-        setSelectedPlanId('')
-      })
-      .catch(() => {
-        setError('No se pudo contratar la suscripción. Inténtalo de nuevo.')
-      })
-      .finally(() => {
-        setIsSaving(false)
-      })
+  const parseDate = (value) => {
+    if (!value) return null
+    const d = new Date(value)
+    return Number.isNaN(d.getTime()) ? null : d
   }
 
-  const planSeleccionado =
-    planes && selectedPlanId
-      ? planes.find((p) => p.id === Number(selectedPlanId))
-      : null
+  const formatDateShort = (value) => {
+    const d = parseDate(value)
+    if (!d) return value || '—'
+    return d.toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: '2-digit' })
+  }
+
+  const daysBetween = (startDate, endDate) => {
+    if (!startDate || !endDate) return null
+    const ms = endDate.getTime() - startDate.getTime()
+    return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)))
+  }
+
+  const clamp = (value, min, max) => {
+    return Math.min(max, Math.max(min, value))
+  }
+
+  const buildPlanFeatures = (plan) => {
+    if (!plan) return []
+    const features = []
+    features.push(plan.limiteAlmacenes != null ? `Hasta ${plan.limiteAlmacenes} almacenes` : 'Almacenes ilimitados')
+    features.push(plan.limiteArmarios != null ? `Hasta ${plan.limiteArmarios} armarios` : 'Armarios ilimitados')
+    features.push(plan.limiteRepisas != null ? `Hasta ${plan.limiteRepisas} repisas` : 'Repisas ilimitadas')
+    features.push(plan.limiteItems != null ? `Hasta ${plan.limiteItems} items` : 'Items ilimitados')
+    features.push(plan.limiteProductos != null ? `Hasta ${plan.limiteProductos} productos` : 'Productos ilimitados')
+    features.push(plan.limiteUsuarios != null ? `Hasta ${plan.limiteUsuarios} usuarios` : 'Usuarios ilimitados')
+    return features
+  }
+
+  const susInicio = suscripcionActual ? parseDate(suscripcionActual.fechaInicio) : null
+  const susFin = suscripcionActual ? parseDate(suscripcionActual.fechaFin) : null
+  const susDiasRestantes = suscripcionActual && suscripcionActual.fechaFin != null
+    ? Number(suscripcionActual.diasRestantes)
+    : null
+  const susTotalDias = susInicio && susFin ? daysBetween(susInicio, susFin) : null
+  const susRemainingPct = susTotalDias && susDiasRestantes != null
+    ? clamp(susDiasRestantes / susTotalDias, 0, 1)
+    : null
+
+  const renderDonut = ({ pct, labelTop, labelBottom }) => {
+    const safePct = pct != null ? clamp(pct, 0, 1) : 0
+    const r = 44
+    const c = 2 * Math.PI * r
+    const offset = c * (1 - safePct)
+    return (
+      <div className="sub-donut">
+        <svg viewBox="0 0 120 120" className="sub-donut-svg" aria-hidden="true">
+          <circle className="sub-donut-track" cx="60" cy="60" r={r} fill="none" />
+          <circle
+            className="sub-donut-value"
+            cx="60"
+            cy="60"
+            r={r}
+            fill="none"
+            strokeDasharray={c}
+            strokeDashoffset={offset}
+          />
+        </svg>
+        <div className="sub-donut-center">
+          <div className="sub-donut-top">{labelTop}</div>
+          <div className="sub-donut-bottom">{labelBottom}</div>
+        </div>
+      </div>
+    )
+  }
+
+  const renderUsageBar = ({ label, used, limit }) => {
+    const usedNum = used != null ? Number(used) : 0
+    const limitNum = limit != null ? Number(limit) : null
+    const pct = limitNum && Number.isFinite(limitNum) && limitNum > 0
+      ? clamp(usedNum / limitNum, 0, 1)
+      : 1
+
+    return (
+      <div className="sub-bar-row" key={label}>
+        <div className="sub-bar-label">{label}</div>
+        <div className="sub-bar-track">
+          <div className="sub-bar-fill" style={{ width: `${Math.round(pct * 100)}%` }} />
+        </div>
+        <div className="sub-bar-value">
+          {limitNum == null || !Number.isFinite(limitNum)
+            ? `${usedNum} / ∞`
+            : `${usedNum} / ${limitNum}`}
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <main className="page admin-page">
+    <main className="page admin-page subscription-page">
       <header className="admin-topbar">
         <div className="admin-topbar-brand">
           <div className="admin-topbar-mark" />
@@ -140,163 +234,154 @@ const SuscripcionPage = ({ theme, onThemeChange }) => {
         </div>
       </header>
       <div className="admin-body">
-        <div className="admin-main" style={{ maxWidth: '900px', margin: '0 auto', padding: '2rem' }}>
-          <h2 className="admin-main-title">Suscripción</h2>
-          <p className="admin-main-text">
-            {empresaNombre
-              ? `Gestiona la suscripción de "${empresaNombre}".`
-              : 'Gestiona la suscripción de tu empresa.'}
-          </p>
-
-          <LocalNavBar />
-
-          {error && (
-            <div style={{ color: 'var(--color-error, #e53935)', marginBottom: '1rem' }}>
-              {error}
+        <div className="admin-main" style={{ maxWidth: '1180px', margin: '0 auto', padding: '2rem' }}>
+          <div className="sub-hero">
+            <div className="sub-hero-left">
+              <div className="sub-kicker">Suscripción</div>
+              <h2 className="sub-title">Usage y características</h2>
+              <div className="sub-muted" style={{ marginTop: '10px', maxWidth: '56ch' }}>
+                {empresaNombre
+                  ? `Información de suscripción de "${empresaNombre}".`
+                  : 'Información de suscripción de tu empresa.'}
+              </div>
+              <div style={{ marginTop: '14px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <LocalNavBar />
+                <Link to="/pricing" className="theme-button active">
+                  Actualizar / Cambiar suscripción
+                </Link>
+              </div>
             </div>
-          )}
-          {success && (
-            <div style={{ color: 'var(--color-success, #43a047)', marginBottom: '1rem' }}>
-              {success}
+
+            <div className="sub-hero-right">
+              <div className="sub-hero-card">
+                <div className="sub-hero-card-top">
+                  <div>
+                    <div className="sub-kicker">Tiempo restante</div>
+                    <div className="sub-hero-metric">
+                      {suscripcionActual && suscripcionActual.fechaFin
+                        ? `${suscripcionActual.diasRestantes} días`
+                        : '—'}
+                    </div>
+                    <div className="sub-muted">
+                      {suscripcionActual && suscripcionActual.fechaFin
+                        ? `Fin: ${formatDateShort(suscripcionActual.fechaFin)}`
+                        : suscripcionActual
+                          ? 'Sin fecha fin'
+                          : 'Sin suscripción activa'}
+                    </div>
+                  </div>
+                  {renderDonut({
+                    pct: susRemainingPct,
+                    labelTop: susRemainingPct != null ? `${Math.round(susRemainingPct * 100)}%` : '—',
+                    labelBottom: 'restante',
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {(error || success) && (
+            <div className="sub-alerts">
+              {error && <div className="sub-alert sub-alert--error">{error}</div>}
+              {success && <div className="sub-alert sub-alert--success">{success}</div>}
             </div>
           )}
 
           {isLoading && <p>Cargando…</p>}
 
-          {!isLoading && suscripcionActual && (
-            <div className="admin-table-shell" style={{ marginBottom: '2rem' }}>
-              <h3 style={{ margin: '0 0 0.5rem 0' }}>Plan actual</h3>
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Plan</th>
-                    <th>Inicio</th>
-                    <th>Fin</th>
-                    <th>Días restantes</th>
-                    <th>Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>{suscripcionActual.planNombre}</td>
-                    <td>{suscripcionActual.fechaInicio}</td>
-                    <td>{suscripcionActual.fechaFin || '∞'}</td>
-                    <td>
-                      {suscripcionActual.fechaFin
-                        ? `${suscripcionActual.diasRestantes} días`
-                        : 'Sin fecha fin'}
-                    </td>
-                    <td>
-                      <span style={{
-                        color: suscripcionActual.estado === 'ACTIVA'
-                          ? 'var(--color-success, #43a047)'
-                          : 'var(--color-error, #e53935)',
-                      }}>
-                        {suscripcionActual.estado}
-                      </span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-              {suscripcionActual.plan && (
-                <div style={{ marginTop: '0.75rem', fontSize: '0.9em', opacity: 0.7 }}>
-                  Límites del plan:{' '}
-                  {[
-                    suscripcionActual.plan.limiteAlmacenes != null && `${suscripcionActual.plan.limiteAlmacenes} almacenes`,
-                    suscripcionActual.plan.limiteArmarios != null && `${suscripcionActual.plan.limiteArmarios} armarios`,
-                    suscripcionActual.plan.limiteRepisas != null && `${suscripcionActual.plan.limiteRepisas} repisas`,
-                    suscripcionActual.plan.limiteItems != null && `${suscripcionActual.plan.limiteItems} items`,
-                    suscripcionActual.plan.limiteUsuarios != null && `${suscripcionActual.plan.limiteUsuarios} usuarios`,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ') || 'Ilimitado'}
+          {!isLoading && (
+            <div className="sub-section">
+              <div className="sub-section-top">
+                <div>
+                  <div className="sub-kicker">Mi suscripción</div>
+                  <div className="sub-section-title">Uso y límites</div>
+                  <div className="sub-muted" style={{ marginTop: '6px' }}>
+                    {suscripcionActual
+                      ? 'Revisa tu consumo actual frente a los límites del plan.'
+                      : 'No tienes un plan activo. Puedes elegir uno en Pricing.'}
+                  </div>
                 </div>
-              )}
-            </div>
-          )}
-
-          {!isLoading && !suscripcionActual && (
-            <div style={{ marginBottom: '2rem', opacity: 0.7 }}>
-              Tu empresa no tiene una suscripción activa.
-            </div>
-          )}
-
-          {!isLoading && planes && planes.length > 0 && (
-            <div className="admin-table-shell">
-              <h3 style={{ margin: '0 0 1rem 0' }}>
-                {suscripcionActual ? 'Cambiar plan' : 'Contratar un plan'}
-              </h3>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-                {planes.map((plan) => {
-                  const isSelected = selectedPlanId === String(plan.id)
-                  const limites = []
-                  if (plan.limiteAlmacenes != null) limites.push(`${plan.limiteAlmacenes} almacenes`)
-                  if (plan.limiteArmarios != null) limites.push(`${plan.limiteArmarios} armarios`)
-                  if (plan.limiteRepisas != null) limites.push(`${plan.limiteRepisas} repisas`)
-                  if (plan.limiteItems != null) limites.push(`${plan.limiteItems} items`)
-                  if (plan.limiteUsuarios != null) limites.push(`${plan.limiteUsuarios} usuarios`)
-                  return (
-                    <div
-                      key={plan.id}
-                      onClick={() => setSelectedPlanId(String(plan.id))}
-                      style={{
-                        padding: '1.25rem',
-                        borderRadius: '12px',
-                        border: isSelected ? '2px solid var(--color-primary, #1976d2)' : '2px solid var(--color-border, #e0e0e0)',
-                        background: isSelected ? 'var(--color-primary-bg, rgba(25,118,210,0.08))' : 'var(--color-surface, #fff)',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                      }}
-                    >
-                      <div style={{ fontWeight: 700, fontSize: '1.1em', marginBottom: '0.5rem' }}>
-                        {plan.nombre}
-                      </div>
-                      {plan.descripcion && (
-                        <div style={{ fontSize: '0.9em', opacity: 0.7, marginBottom: '0.5rem' }}>
-                          {plan.descripcion}
-                        </div>
-                      )}
-                      <div style={{ fontSize: '0.85em' }}>
-                        {limites.length > 0
-                          ? limites.map((l, i) => (
-                              <div key={i}>{l}</div>
-                            ))
-                          : <div>Ilimitado</div>}
-                      </div>
-                    </div>
-                  )
-                })}
+                <Link to="/pricing" className="theme-button active">
+                  Actualizar / Cambiar
+                </Link>
               </div>
 
-              {selectedPlanId && (
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <select
-                    value={duracionMeses}
-                    onChange={(e) => setDuracionMeses(e.target.value)}
-                    style={{ minWidth: '180px' }}
-                  >
-                    <option value="1">1 mes</option>
-                    <option value="3">3 meses</option>
-                    <option value="6">6 meses</option>
-                    <option value="12">12 meses</option>
-                  </select>
-                  <button
-                    type="button"
-                    className="theme-button"
-                    onClick={handleComprar}
-                    disabled={isSaving || !selectedPlanId}
-                  >
-                    {isSaving ? 'Contratando…' : `Contratar ${planSeleccionado ? planSeleccionado.nombre : 'plan'}`}
-                  </button>
+              {suscripcionActual && (
+                <div className="sub-stats">
+                  <div className="sub-stat">
+                    <div className="sub-stat-label">Plan</div>
+                    <div className="sub-stat-value">{suscripcionActual.planNombre}</div>
+                  </div>
+                  <div className="sub-stat">
+                    <div className="sub-stat-label">Inicio</div>
+                    <div className="sub-stat-value">{formatDateShort(suscripcionActual.fechaInicio)}</div>
+                  </div>
+                  <div className="sub-stat">
+                    <div className="sub-stat-label">Fin</div>
+                    <div className="sub-stat-value">
+                      {suscripcionActual.fechaFin ? formatDateShort(suscripcionActual.fechaFin) : '∞'}
+                    </div>
+                  </div>
+                  <div className="sub-stat">
+                    <div className="sub-stat-label">Auto-renovación</div>
+                    <div className="sub-stat-value">
+                      {typeof suscripcionActual.autoRenovar === 'boolean'
+                        ? (suscripcionActual.autoRenovar ? 'Sí' : 'No')
+                        : 'No disponible'}
+                    </div>
+                  </div>
                 </div>
               )}
-            </div>
-          )}
 
-          {!isLoading && (!planes || planes.length === 0) && (
-            <div style={{ opacity: 0.7 }}>
-              No hay planes disponibles en este momento.
+              {suscripcionActual && usage && suscripcionActual.plan && (
+                <div style={{ marginTop: '14px' }}>
+                  <div className="sub-kicker">Usage</div>
+                  <div className="sub-bars" style={{ marginTop: '10px' }}>
+                    {renderUsageBar({
+                      label: 'Usuarios',
+                      used: usage.usuarios,
+                      limit: suscripcionActual.plan.limiteUsuarios,
+                    })}
+                    {renderUsageBar({
+                      label: 'Items',
+                      used: usage.items,
+                      limit: suscripcionActual.plan.limiteItems,
+                    })}
+                    {renderUsageBar({
+                      label: 'Almacenes',
+                      used: usage.almacenes,
+                      limit: suscripcionActual.plan.limiteAlmacenes,
+                    })}
+                    {renderUsageBar({
+                      label: 'Armarios',
+                      used: usage.armarios,
+                      limit: suscripcionActual.plan.limiteArmarios,
+                    })}
+                    {renderUsageBar({
+                      label: 'Repisas',
+                      used: usage.repisas,
+                      limit: suscripcionActual.plan.limiteRepisas,
+                    })}
+                    {renderUsageBar({
+                      label: 'Productos',
+                      used: usage.productos,
+                      limit: suscripcionActual.plan.limiteProductos,
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ marginTop: '14px' }}>
+                <ul className="sub-features">
+                  {suscripcionActual && suscripcionActual.plan
+                    ? buildPlanFeatures(suscripcionActual.plan).map((f) => <li key={f}>{f}</li>)
+                    : (
+                      <>
+                        <li>Selecciona un plan para ver características.</li>
+                      </>
+                    )}
+                </ul>
+              </div>
             </div>
           )}
         </div>

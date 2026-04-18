@@ -14,6 +14,7 @@ public class EmpresaSuscripcionDtos {
             LocalDate fechaFin,
             Long diasRestantes,
             String estado,
+            Boolean autoRenovar,
             PlanSuscripcionDtos.PlanSuscripcionDto plan
     ) {
     }
@@ -21,7 +22,8 @@ public class EmpresaSuscripcionDtos {
     public record EmpresaSuscripcionCreateDto(
             Long planId,
             LocalDate fechaInicio,
-            LocalDate fechaFin
+            LocalDate fechaFin,
+            Boolean autoRenovar
     ) {
     }
 

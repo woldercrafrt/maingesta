@@ -21,6 +21,10 @@ public class PlanSuscripcion {
     @Column(nullable = false)
     private String descripcion = "";
 
+    private Long precioMensualCents;
+
+    private Long precioAnualCents;
+
     private Integer limiteAlmacenes;
 
     private Integer limiteArmarios;
@@ -58,6 +62,22 @@ public class PlanSuscripcion {
 
     public void setDescripcion(String descripcion) {
         this.descripcion = descripcion;
+    }
+
+    public Long getPrecioMensualCents() {
+        return precioMensualCents;
+    }
+
+    public void setPrecioMensualCents(Long precioMensualCents) {
+        this.precioMensualCents = precioMensualCents;
+    }
+
+    public Long getPrecioAnualCents() {
+        return precioAnualCents;
+    }
+
+    public void setPrecioAnualCents(Long precioAnualCents) {
+        this.precioAnualCents = precioAnualCents;
     }
 
     public Integer getLimiteAlmacenes() {

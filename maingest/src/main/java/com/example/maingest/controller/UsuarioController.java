@@ -21,6 +21,7 @@ import com.example.maingest.service.PermissionService;
 import com.example.maingest.service.SuscripcionValidationService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +46,7 @@ public class UsuarioController {
     private final PermissionService permissionService;
     private final AuditoriaService auditoriaService;
     private final SuscripcionValidationService suscripcionValidationService;
+    private final PasswordEncoder passwordEncoder;
 
     public UsuarioController(
             UsuarioRepository usuarioRepository,
@@ -55,7 +57,8 @@ public class UsuarioController {
             AccessControlService accessControlService,
             PermissionService permissionService,
             AuditoriaService auditoriaService,
-            SuscripcionValidationService suscripcionValidationService
+            SuscripcionValidationService suscripcionValidationService,
+            PasswordEncoder passwordEncoder
     ) {
         this.usuarioRepository = usuarioRepository;
         this.rolRepository = rolRepository;
@@ -66,6 +69,7 @@ public class UsuarioController {
         this.permissionService = permissionService;
         this.auditoriaService = auditoriaService;
         this.suscripcionValidationService = suscripcionValidationService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     private Usuario currentUsuario() {
@@ -140,7 +144,7 @@ public class UsuarioController {
         }
         Usuario usuario = new Usuario();
         usuario.setCorreo(dto.correo());
-        usuario.setClave(dto.clave());
+        usuario.setClave(dto.clave() != null ? passwordEncoder.encode(dto.clave()) : null);
         usuario.setNombre(dto.nombre());
         usuario.setEstado(dto.estado());
         Usuario guardado = usuarioRepository.save(usuario);
@@ -173,7 +177,7 @@ public class UsuarioController {
             usuario.setCorreo(actualizacion.correo());
         }
         if (actualizacion.clave() != null && !actualizacion.clave().isBlank()) {
-            usuario.setClave(actualizacion.clave());
+            usuario.setClave(passwordEncoder.encode(actualizacion.clave()));
         }
         if (actualizacion.nombre() != null && !actualizacion.nombre().isBlank()) {
             usuario.setNombre(actualizacion.nombre());

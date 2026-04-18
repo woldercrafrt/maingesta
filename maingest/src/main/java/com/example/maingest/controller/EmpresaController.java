@@ -9,16 +9,19 @@ import com.example.maingest.domain.Rol;
 import com.example.maingest.domain.Usuario;
 import com.example.maingest.dto.EmpresaDtos.EmpresaCreateDto;
 import com.example.maingest.dto.EmpresaDtos.EmpresaDto;
+import com.example.maingest.dto.EmpresaDtos.EmpresaUsageDto;
 import com.example.maingest.dto.EmpresaSuscripcionDtos.EmpresaBloqueoDto;
 import com.example.maingest.dto.EmpresaSuscripcionDtos.EmpresaSuscripcionCreateDto;
 import com.example.maingest.dto.EmpresaSuscripcionDtos.EmpresaSuscripcionDto;
 import com.example.maingest.dto.EmpresaUsuarioDto;
 import com.example.maingest.dto.PlanSuscripcionDtos.PlanSuscripcionDto;
+import com.example.maingest.repository.AlmacenRepository;
 import com.example.maingest.repository.EmpresaRepository;
 import com.example.maingest.repository.EmpresaSuscripcionRepository;
 import com.example.maingest.repository.EmpresaUsuarioRepository;
 import com.example.maingest.repository.PlanSuscripcionRepository;
 import com.example.maingest.repository.RolRepository;
+import com.example.maingest.repository.ProductoRepository;
 import com.example.maingest.repository.UsuarioRepository;
 import com.example.maingest.service.AccessControlService;
 import com.example.maingest.service.AuditoriaService;
@@ -47,6 +50,8 @@ public class EmpresaController {
     private final EmpresaUsuarioRepository empresaUsuarioRepository;
     private final EmpresaSuscripcionRepository empresaSuscripcionRepository;
     private final PlanSuscripcionRepository planSuscripcionRepository;
+    private final AlmacenRepository almacenRepository;
+    private final ProductoRepository productoRepository;
     private final AccessControlService accessControlService;
     private final PermissionService permissionService;
     private final AuditoriaService auditoriaService;
@@ -58,6 +63,8 @@ public class EmpresaController {
             EmpresaUsuarioRepository empresaUsuarioRepository,
             EmpresaSuscripcionRepository empresaSuscripcionRepository,
             PlanSuscripcionRepository planSuscripcionRepository,
+            AlmacenRepository almacenRepository,
+            ProductoRepository productoRepository,
             AccessControlService accessControlService,
             PermissionService permissionService,
             AuditoriaService auditoriaService
@@ -68,6 +75,8 @@ public class EmpresaController {
         this.empresaUsuarioRepository = empresaUsuarioRepository;
         this.empresaSuscripcionRepository = empresaSuscripcionRepository;
         this.planSuscripcionRepository = planSuscripcionRepository;
+        this.almacenRepository = almacenRepository;
+        this.productoRepository = productoRepository;
         this.accessControlService = accessControlService;
         this.permissionService = permissionService;
         this.auditoriaService = auditoriaService;
@@ -132,6 +141,37 @@ public class EmpresaController {
             }
         }
         return ResponseEntity.ok(toDto(empresa));
+    }
+
+    @GetMapping("/{id}/usage")
+    public ResponseEntity<EmpresaUsageDto> usage(@PathVariable Long id) {
+        Usuario actor = currentUsuario();
+        if (actor == null) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        if (!permissionService.hasPermission(actor, "EMPRESA", 1)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        Optional<Empresa> empresaOpt = empresaRepository.findById(id);
+        if (empresaOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        Empresa empresa = empresaOpt.get();
+        if (!accessControlService.isSuperAdmin(actor)) {
+            List<EmpresaUsuario> relaciones = empresaUsuarioRepository.findAllByEmpresaAndUsuario(empresa, actor);
+            if (relaciones.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        }
+
+        long almacenes = almacenRepository.countByEmpresaId(id);
+        long armarios = almacenRepository.countArmariosByEmpresaId(id);
+        long repisas = almacenRepository.countRepisasByEmpresaId(id);
+        long items = almacenRepository.countItemsByEmpresaId(id);
+        long productos = productoRepository.countByEmpresaId(id);
+        long usuarios = empresaUsuarioRepository.findByEmpresa(empresa).size();
+
+        return ResponseEntity.ok(new EmpresaUsageDto(id, almacenes, armarios, repisas, items, productos, usuarios));
     }
 
     @PostMapping
@@ -380,6 +420,8 @@ public class EmpresaController {
                 plan.getId(),
                 plan.getNombre(),
                 plan.getDescripcion(),
+                plan.getPrecioMensualCents(),
+                plan.getPrecioAnualCents(),
                 plan.getLimiteAlmacenes(),
                 plan.getLimiteArmarios(),
                 plan.getLimiteRepisas(),
@@ -397,17 +439,23 @@ public class EmpresaController {
                 diasRestantes = 0;
             }
         }
+        Long empresaId = es.getEmpresa() != null ? es.getEmpresa().getId() : null;
+        String empresaNombre = es.getEmpresa() != null ? es.getEmpresa().getNombre() : null;
+        Long planId = es.getPlan() != null ? es.getPlan().getId() : null;
+        String planNombre = es.getPlan() != null ? es.getPlan().getNombre() : null;
+        PlanSuscripcionDto planDto = es.getPlan() != null ? planToDto(es.getPlan()) : null;
         return new EmpresaSuscripcionDto(
                 es.getId(),
-                es.getEmpresa().getId(),
-                es.getEmpresa().getNombre(),
-                es.getPlan().getId(),
-                es.getPlan().getNombre(),
+                empresaId,
+                empresaNombre,
+                planId,
+                planNombre,
                 es.getFechaInicio(),
                 es.getFechaFin(),
                 diasRestantes,
                 es.getEstado(),
-                planToDto(es.getPlan())
+                es.getAutoRenovar(),
+                planDto
         );
     }
 
@@ -478,6 +526,7 @@ public class EmpresaController {
         nueva.setFechaInicio(dto.fechaInicio() != null ? dto.fechaInicio() : LocalDate.now());
         nueva.setFechaFin(dto.fechaFin());
         nueva.setEstado("ACTIVA");
+        nueva.setAutoRenovar(dto.autoRenovar() != null && dto.autoRenovar());
         EmpresaSuscripcion guardada = empresaSuscripcionRepository.save(nueva);
 
         auditoriaService.registrar(

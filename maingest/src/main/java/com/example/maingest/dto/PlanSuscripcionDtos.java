@@ -6,6 +6,8 @@ public class PlanSuscripcionDtos {
             Long id,
             String nombre,
             String descripcion,
+            Long precioMensualCents,
+            Long precioAnualCents,
             Integer limiteAlmacenes,
             Integer limiteArmarios,
             Integer limiteRepisas,
@@ -18,6 +20,8 @@ public class PlanSuscripcionDtos {
     public record PlanSuscripcionCreateDto(
             String nombre,
             String descripcion,
+            Long precioMensualCents,
+            Long precioAnualCents,
             Integer limiteAlmacenes,
             Integer limiteArmarios,
             Integer limiteRepisas,

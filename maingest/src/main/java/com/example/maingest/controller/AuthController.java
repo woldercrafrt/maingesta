@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,17 +29,20 @@ public class AuthController {
     private final JwtService jwtService;
     private final AccessControlService accessControlService;
     private final PermissionService permissionService;
+    private final PasswordEncoder passwordEncoder;
 
     public AuthController(
             UsuarioRepository usuarioRepository,
             JwtService jwtService,
             AccessControlService accessControlService,
-            PermissionService permissionService
+            PermissionService permissionService,
+            PasswordEncoder passwordEncoder
     ) {
         this.usuarioRepository = usuarioRepository;
         this.jwtService = jwtService;
         this.accessControlService = accessControlService;
         this.permissionService = permissionService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public record LoginRequest(String correo, String clave) {
@@ -57,7 +61,16 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         Usuario usuario = usuarioOpt.get();
-        if (!usuario.getClave().equals(request.clave())) {
+        String storedPassword = usuario.getClave();
+        boolean passwordMatches = storedPassword != null && passwordEncoder.matches(request.clave(), storedPassword);
+        if (!passwordMatches && storedPassword != null && storedPassword.equals(request.clave())) {
+            // Usuario legado con contraseña en texto plano: encriptar una sola vez y continuar
+            String encoded = passwordEncoder.encode(request.clave());
+            usuario.setClave(encoded);
+            usuario = usuarioRepository.save(usuario);
+            passwordMatches = true;
+        }
+        if (!passwordMatches) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         accessControlService.ensureInitialSuperAdmin(usuario);
@@ -101,7 +114,7 @@ public class AuthController {
         // Crear el usuario inicial SUPER_ADMIN
         Usuario usuario = new Usuario();
         usuario.setCorreo("admin@maingest.com");
-        usuario.setClave("admin");
+        usuario.setClave(passwordEncoder.encode("admin"));
         usuario.setNombre("Administrador");
         usuario.setEstado("ACTIVO");
         Usuario guardado = usuarioRepository.save(usuario);

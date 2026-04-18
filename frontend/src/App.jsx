@@ -8,6 +8,7 @@ import AdminPage from './pages/AdminPage'
 import AlmacenVisualizerPage from './pages/AlmacenVisualizerPage'
 import ArmarioVisualizerPage from './pages/ArmarioVisualizerPage'
 import SuscripcionPage from './pages/SuscripcionPage'
+import PricingPage from './pages/PricingPage'
 import CatalogoPage from './pages/CatalogoPage'
 import ProductoDetailPage from './pages/ProductoDetailPage'
 import KardexPage from './pages/KardexPage'
@@ -141,6 +142,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <SuscripcionPage theme={theme} onThemeChange={handleThemeChange} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/pricing"
+            element={
+              <ProtectedRoute>
+                <PricingPage theme={theme} onThemeChange={handleThemeChange} />
               </ProtectedRoute>
             }
           />

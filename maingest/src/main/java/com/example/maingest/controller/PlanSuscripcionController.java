@@ -51,6 +51,8 @@ public class PlanSuscripcionController {
                 plan.getId(),
                 plan.getNombre(),
                 plan.getDescripcion(),
+                plan.getPrecioMensualCents(),
+                plan.getPrecioAnualCents(),
                 plan.getLimiteAlmacenes(),
                 plan.getLimiteArmarios(),
                 plan.getLimiteRepisas(),
@@ -91,6 +93,8 @@ public class PlanSuscripcionController {
         PlanSuscripcion plan = new PlanSuscripcion();
         plan.setNombre(dto.nombre().trim());
         plan.setDescripcion(dto.descripcion() != null ? dto.descripcion().trim() : "");
+        plan.setPrecioMensualCents(dto.precioMensualCents());
+        plan.setPrecioAnualCents(dto.precioAnualCents());
         plan.setLimiteAlmacenes(dto.limiteAlmacenes());
         plan.setLimiteArmarios(dto.limiteArmarios());
         plan.setLimiteRepisas(dto.limiteRepisas());
@@ -123,6 +127,8 @@ public class PlanSuscripcionController {
                     if (dto.descripcion() != null) {
                         plan.setDescripcion(dto.descripcion().trim());
                     }
+                    plan.setPrecioMensualCents(dto.precioMensualCents());
+                    plan.setPrecioAnualCents(dto.precioAnualCents());
                     plan.setLimiteAlmacenes(dto.limiteAlmacenes());
                     plan.setLimiteArmarios(dto.limiteArmarios());
                     plan.setLimiteRepisas(dto.limiteRepisas());

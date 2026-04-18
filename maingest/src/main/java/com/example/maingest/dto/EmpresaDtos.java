@@ -14,5 +14,16 @@ public class EmpresaDtos {
             String nombre
     ) {
     }
+
+    public record EmpresaUsageDto(
+            Long empresaId,
+            Long almacenes,
+            Long armarios,
+            Long repisas,
+            Long items,
+            Long productos,
+            Long usuarios
+    ) {
+    }
 }
 
