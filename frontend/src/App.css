@@ -647,11 +647,11 @@ html[data-theme='semi'] {
   position: fixed;
   inset: 0;
   background: rgba(15, 23, 42, 0.55);
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 50;
+  z-index: 1200;
   padding: 16px;
   overflow-y: auto;
 }
@@ -2317,8 +2317,7 @@ html[data-theme='semi'] {
   /* Modal fixes for mobile */
   .modal-backdrop {
     padding: 8px;
-    align-items: flex-start;
-    padding-top: 20px;
+    align-items: center;
   }
 
   .modal {
