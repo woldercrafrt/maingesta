@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" role="img" aria-label="Captura 1">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#eaf0ff" stop-opacity="0.95"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="560" rx="28" fill="url(#bg)"/>
+  <rect x="40" y="40" width="240" height="18" rx="9" fill="#2d6cdf" fill-opacity="0.7"/>
+  <rect x="40" y="80" width="360" height="12" rx="6" fill="#0f172a" fill-opacity="0.18"/>
+  <g transform="translate(40 130)">
+    <rect width="820" height="110" rx="22" fill="#2d6cdf" fill-opacity="0.10"/>
+    <rect x="26" y="28" width="210" height="14" rx="7" fill="#2d6cdf" fill-opacity="0.45"/>
+    <rect x="26" y="56" width="320" height="14" rx="7" fill="#2d6cdf" fill-opacity="0.28"/>
+    <rect x="26" y="84" width="260" height="14" rx="7" fill="#2d6cdf" fill-opacity="0.22"/>
+  </g>
+  <g transform="translate(40 260)">
+    <rect width="820" height="110" rx="22" fill="#0f172a" fill-opacity="0.06"/>
+    <rect x="26" y="28" width="180" height="14" rx="7" fill="#0f172a" fill-opacity="0.22"/>
+    <rect x="26" y="56" width="340" height="14" rx="7" fill="#0f172a" fill-opacity="0.14"/>
+    <rect x="26" y="84" width="240" height="14" rx="7" fill="#0f172a" fill-opacity="0.12"/>
+  </g>
+  <g transform="translate(40 390)">
+    <rect width="820" height="110" rx="22" fill="#2d6cdf" fill-opacity="0.08"/>
+    <rect x="26" y="28" width="160" height="14" rx="7" fill="#2d6cdf" fill-opacity="0.4"/>
+    <rect x="26" y="56" width="300" height="14" rx="7" fill="#2d6cdf" fill-opacity="0.22"/>
+    <rect x="26" y="84" width="220" height="14" rx="7" fill="#2d6cdf" fill-opacity="0.18"/>
+  </g>
+</svg>

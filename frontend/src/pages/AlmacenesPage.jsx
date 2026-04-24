@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import MobileNavMenu from '../components/MobileNavMenu'
 import ThemeSelector from '../components/ThemeSelector'
 import UserMenu from '../components/UserMenu'
@@ -15,6 +15,7 @@ import {
   parseAlmacenShapePointsFromEstilos,
   renderAlmacenShape
 } from '../utils/shapeUtils'
+import { safeNavigate } from '../utils/safeNavigation'
 
 const AlmacenesPage = ({ theme, onThemeChange }) => {
   const navigate = useNavigate()
@@ -402,7 +403,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
         setFormItemTamanio('1')
         setInventarioData(null)
       })
-      .catch((err) => alert(err.message))
+      .catch((err) => setError(err?.message || 'No se pudo crear el item.'))
       .finally(() => setIsSavingItem(false))
   }
 
@@ -1394,7 +1395,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                                     className="action-button view-button"
                                     onClick={(e) => {
                                       e.stopPropagation()
-                                      navigate(`/almacen/${almacen.id}`)
+                                      safeNavigate(navigate, `/almacen/${almacen.id}`)
                                     }}
                                     title="Ver almacén"
                                   >
@@ -1820,7 +1821,7 @@ const AlmacenesPage = ({ theme, onThemeChange }) => {
                                   className="action-button view-button"
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    navigate(`/armario/${fila.armarioId}`)
+                                    safeNavigate(navigate, `/armario/${fila.armarioId}`)
                                   }}
                                   title="Ver y editar armario visualmente"
                                 >

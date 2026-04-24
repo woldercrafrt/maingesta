@@ -127,7 +127,7 @@ const EmpresaPage = ({ theme, onThemeChange }) => {
     const draft = priceDraftByItemId[itemId]
     const normalized = draft === '' || draft === null || draft === undefined ? null : Number(draft)
     if (normalized !== null && Number.isNaN(normalized)) {
-      alert('Precio inválido')
+      setError('Precio inválido')
       return
     }
 
@@ -152,7 +152,7 @@ const EmpresaPage = ({ theme, onThemeChange }) => {
         setEmpresaItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)))
         setPriceDraftByItemId((prev) => ({ ...prev, [updated.id]: updated.precio ?? '' }))
       })
-      .catch((err) => alert(err.message))
+      .catch((err) => setError(err?.message || 'Error al guardar precio'))
       .finally(() => setIsSavingPriceId(null))
   }
 

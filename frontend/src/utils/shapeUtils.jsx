@@ -157,7 +157,27 @@ export const parseAlmacenShapeDataFromEstilos = (estilos) => {
     return null
   }
   if (raw.startsWith('<svg')) {
-    return { type: 'svg', svg: raw }
+    const match = raw.match(/points\s*=\s*"([^"]+)"/i)
+    if (!match || !match[1]) {
+      return null
+    }
+    const pairs = match[1].trim().split(/\s+/)
+    const points = pairs
+      .map((pair) => {
+        const [xs, ys] = pair.split(',')
+        const x = Number(xs)
+        const y = Number(ys)
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+          return null
+        }
+        if (x > 1 || y > 1) {
+          return { x: x / 100, y: y / 100 }
+        }
+        return { x, y }
+      })
+      .filter(Boolean)
+    const sanitized = sanitizeAlmacenShapePoints(points)
+    return { type: 'points', points: sanitized, aspectRatio: null }
   }
   try {
     const parsed = JSON.parse(raw)
@@ -247,14 +267,6 @@ export const renderAlmacenShape = (estilos) => {
   const data = getAlmacenShapeRenderData(estilos)
   if (!data) {
     return null
-  }
-  if (data.type === 'svg') {
-    return (
-      <div
-        className="almacen-shape-svg-container"
-        dangerouslySetInnerHTML={{ __html: data.svg }}
-      />
-    )
   }
   const pointsAttr = data.points.map((point) => `${point.x},${point.y}`).join(' ')
   return (

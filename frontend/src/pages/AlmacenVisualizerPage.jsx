@@ -4,6 +4,7 @@ import ThemeSelector from '../components/ThemeSelector'
 import LocalNavBar from '../components/LocalNavBar'
 import { backendBaseUrl } from '../utils/config'
 import { renderAlmacenShape, getAlmacenShapeAspectRatio } from '../utils/shapeUtils'
+import { safeNavigate } from '../utils/safeNavigation'
 
 const AlmacenVisualizerPage = ({ theme, onThemeChange }) => {
   const { id } = useParams()
@@ -518,7 +519,7 @@ const AlmacenVisualizerPage = ({ theme, onThemeChange }) => {
         </div>
         <div className="admin-topbar-actions">
            <ThemeSelector theme={theme} onChange={onThemeChange} />
-           <button className="theme-button" onClick={() => navigate('/admin')}>Volver al Panel</button>
+           <button className="theme-button" onClick={() => safeNavigate(navigate, '/admin')}>Volver al Panel</button>
         </div>
       </header>
       <div className="admin-body admin-body-single">
@@ -664,7 +665,7 @@ const AlmacenVisualizerPage = ({ theme, onThemeChange }) => {
                                   onMouseLeave={() => setHoveredArmarioId(null)}
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    if (!isEditMode) navigate(`/armario/${armario.id}`)
+                                    if (!isEditMode) safeNavigate(navigate, `/armario/${armario.id}`)
                                   }}
                                 >
                                   {!isTooSmallForInnerLabel && (
@@ -752,7 +753,7 @@ const AlmacenVisualizerPage = ({ theme, onThemeChange }) => {
                                   className="armario-open-btn"
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    navigate(`/armario/${armario.id}`)
+                                    safeNavigate(navigate, `/armario/${armario.id}`)
                                   }}
                                   title="Abrir armario"
                                 >

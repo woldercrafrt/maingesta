@@ -112,7 +112,7 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
         setShowAddRepisaModal(false)
         setFormRepisaCapacidad('')
       })
-      .catch((err) => alert(err.message))
+      .catch((err) => setError(err?.message || 'No se pudo crear la repisa.'))
       .finally(() => setIsSaving(false))
   }
 
@@ -149,7 +149,7 @@ const ArmarioVisualizerPage = ({ theme, onThemeChange }) => {
         }))
         setShowEditSizeModal(false)
       })
-      .catch((err) => alert(err.message))
+      .catch((err) => setError(err?.message || 'No se pudo actualizar el tamaño.'))
       .finally(() => setIsSaving(false))
   }
 

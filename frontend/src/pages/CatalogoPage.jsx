@@ -6,6 +6,7 @@ import UserMenu from '../components/UserMenu'
 import LocalNavBar from '../components/LocalNavBar'
 import { useAuth } from '../context/AuthContext'
 import { backendBaseUrl } from '../utils/config'
+import { safeNavigate } from '../utils/safeNavigation'
 
 const CatalogoPage = ({ theme, onThemeChange }) => {
   const navigate = useNavigate()
@@ -183,7 +184,7 @@ const CatalogoPage = ({ theme, onThemeChange }) => {
     return (
       <div className="page" style={{ padding: '2rem', textAlign: 'center' }}>
         <h2>No tienes permiso para ver el catálogo</h2>
-        <button className="btn btn-secondary" onClick={() => navigate('/home')}>Volver</button>
+        <button className="btn btn-secondary" onClick={() => safeNavigate(navigate, '/home')}>Volver</button>
       </div>
     )
   }
@@ -279,7 +280,7 @@ const CatalogoPage = ({ theme, onThemeChange }) => {
                         <button
                           type="button"
                           className="action-button"
-                          onClick={() => navigate(`/catalogo/${p.id}`)}
+                          onClick={() => safeNavigate(navigate, `/catalogo/${p.id}`)}
                         >
                           👁️ Ver detalle
                         </button>
@@ -312,11 +313,11 @@ const CatalogoPage = ({ theme, onThemeChange }) => {
                       className={`catalogo-card`}
                       role="button"
                       tabIndex={0}
-                      onClick={() => navigate(`/catalogo/${p.id}`)}
+                      onClick={() => safeNavigate(navigate, `/catalogo/${p.id}`)}
                       onKeyDown={(event) => {
                         if (event.key === 'Enter' || event.key === ' ') {
                           event.preventDefault()
-                          navigate(`/catalogo/${p.id}`)
+                          safeNavigate(navigate, `/catalogo/${p.id}`)
                         }
                       }}
                     >
@@ -346,7 +347,7 @@ const CatalogoPage = ({ theme, onThemeChange }) => {
                           className="action-button"
                           onClick={(event) => {
                             event.stopPropagation()
-                            navigate(`/catalogo/${p.id}`)
+                            safeNavigate(navigate, `/catalogo/${p.id}`)
                           }}
                         >
                           👁️ Ver detalle

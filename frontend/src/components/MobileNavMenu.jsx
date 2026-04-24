@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { safeNavigate } from '../utils/safeNavigation'
 
 const MobileNavMenu = () => {
   const navigate = useNavigate()
@@ -91,7 +92,7 @@ const MobileNavMenu = () => {
               type="button"
               className={`mobile-nav-dropdown-item ${location.pathname.startsWith(item.path) ? 'active' : ''}`}
               onClick={() => {
-                navigate(item.path)
+                safeNavigate(navigate, item.path)
                 setOpen(false)
               }}
             >

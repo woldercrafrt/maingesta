@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+Disallow: /home
+Disallow: /almacenes
+Disallow: /almacen/
+Disallow: /armario/
+Disallow: /admin
+Disallow: /usuarios-roles
+Disallow: /empresa
+Disallow: /suscripcion
+Disallow: /pricing
+Disallow: /catalogo
+Disallow: /kardex
+Disallow: /crear-empresa
+
+Sitemap: https://stockpocket.net/sitemap.xml

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom'
 import './App.css'
 import LoginPage from './pages/LoginPage'
+import LandingPage from './pages/LandingPage'
 import HomePage from './pages/HomePage'
 import AlmacenesPage from './pages/AlmacenesPage'
 import AdminPage from './pages/AdminPage'
@@ -84,7 +85,7 @@ function App() {
         <Routes>
           <Route
             path="/"
-            element={<LoginPage theme={theme} onThemeChange={handleThemeChange} />}
+            element={<LandingPage theme={theme} onThemeChange={handleThemeChange} />}
           />
           <Route
             path="/login"
